@@ -570,3 +570,26 @@ Temporary Items
 *.fls
 *.fdb_latexmk
 *.synctex.gz
+
+
+# === Cleanup additions 2026-06-06 ===
+
+# Terraform
+.terraform/
+*.tfstate
+*.tfstate.*
+terraform.tfvars
+*.tfvars
+crash.log
+
+
+# OS artefacts
+.DS_Store
+Thumbs.db
+desktop.ini
+
+
+# Claude Code local settings (per-user, never commit)
+.claude/settings.local.json
+
+# === End cleanup ===
