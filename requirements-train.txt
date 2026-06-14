@@ -1,0 +1,32 @@
+# Dépendances d'entraînement — à utiliser sur machine ML (conda GPUMachineLearning)
+# PAS utilisé dans l'image Docker de production.
+#
+# Usage :
+#   conda activate GPUMachineLearning
+#   pip install -r requirements-train.txt
+
+# Hérite de toutes les deps d'inférence
+-r requirements.txt
+
+# PyTorch (CUDA 12.4 — compatible driver CUDA 13.0)
+--extra-index-url https://download.pytorch.org/whl/cu124
+torch>=2.2
+
+# TensorFlow + Keras (versions qui ont produit les modèles actuels)
+tensorflow==2.16.1; python_version < "3.13"
+keras==3.13.2
+
+# Conversion ONNX
+tf2onnx>=1.16
+onnx>=1.16
+
+# Medical imaging
+nibabel>=5.0
+
+# Notebooks
+jupyterlab==4.3.5
+notebook==7.3.2
+ipykernel==6.29.5
+
+# Téléchargement datasets
+kaggle>=1.7.4.5
