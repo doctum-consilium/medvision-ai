@@ -1,8 +1,8 @@
 schema: '2.0'
 stages:
   train_chest_xray:
-    cmd: python -m src.training.train --config configs/config.yaml --model optimized
-      --epochs 3
+    cmd: python -m src.training.train --config configs/config.yaml --model 
+      optimized --epochs 3
     deps:
     - path: configs/config.yaml
       hash: md5
@@ -56,8 +56,8 @@ stages:
       md5: 438459cdaf2431ac4ae6a8127c54b978
       size: 216
   train_brain_mri:
-    cmd: python -m src.training.train_brain_mri --config configs/brain_tumor_mri.yaml
-      --model optimized --epochs 10
+    cmd: python -m src.training.train_brain_mri --config 
+      configs/brain_tumor_mri.yaml --model optimized --epochs 10
     deps:
     - path: configs/brain_tumor_mri.yaml
       hash: md5
@@ -111,8 +111,8 @@ stages:
       md5: 27a59a256f430457eacde451576dff2d
       size: 66
   train_brain_tumor_segmentation:
-    cmd: python -m src.segmentation.train_segmentation --config configs/brain_tumor_segmentation.yaml
-      --epochs 10
+    cmd: python -m src.segmentation.train_segmentation --config 
+      configs/brain_tumor_segmentation.yaml --epochs 10
     deps:
     - path: configs/brain_tumor_segmentation.yaml
       hash: md5
@@ -166,3 +166,43 @@ stages:
       hash: md5
       md5: f51329a825cad046b968ff26e023a97d
       size: 70
+  convert_to_onnx:
+    cmd: python scripts/convert_to_onnx.py
+    deps:
+    - path: artifacts/models/baseline_model.keras
+      hash: md5
+      md5: adec7be3dd06d1d65ff0f8bf32ba28cb
+      size: 1271013
+    - path: artifacts/models/brain_mri_optimized.keras
+      hash: md5
+      md5: 1ed2a3adae7ecb296cbe707c0f3a0381
+      size: 17105495
+    - path: artifacts/models/brain_tumor_segmentation_unet.keras
+      hash: md5
+      md5: 4df3c19e15819f6ce58dcb78bcbc71e2
+      size: 94340502
+    - path: artifacts/models/optimized_model.keras
+      hash: md5
+      md5: 978d4cf7cce3bc7ba1b18a367fdb1768
+      size: 11609211
+    - path: scripts/convert_to_onnx.py
+      hash: md5
+      md5: f447329e50f5f6c278b237f11d959f88
+      size: 6028
+    outs:
+    - path: artifacts/models/baseline_model.onnx
+      hash: md5
+      md5: e3277404815ac41774309a5ec36c90b1
+      size: 410226
+    - path: artifacts/models/brain_mri_optimized.onnx
+      hash: md5
+      md5: f698d55d871dac15c1cf332e3fbe4ec1
+      size: 16100235
+    - path: artifacts/models/brain_tumor_segmentation_unet.onnx
+      hash: md5
+      md5: f998e76a9392218404ad377723c7682d
+      size: 31423993
+    - path: artifacts/models/optimized_model.onnx
+      hash: md5
+      md5: 263de2ff20baa96c0b0f6b8c4588c132
+      size: 9572153
