@@ -2,6 +2,40 @@
 
 This file defines Claude Code execution rules for `medvision-ai`.
 
+## 🤝 Handoff 2026-06-16 — Migration ONNX (branche feat/ci-quality-2026-06-15)
+
+> **Image à construire : `medvision-ai:2026-06-16a`** — après conversion des modèles.
+> Branche `feat/ci-quality-2026-06-15` — 4 commits, non encore poussés.
+>
+> **Ce qui a été livré :**
+> - `src/registry/model_registry.py` : `load_onnx_model()` remplace `load_tf_model()`. Tous les
+>   `model_candidates` dans `PROBLEMS` pointent vers des `.onnx`.
+> - `streamlit_app.py` : `_predict()` utilise `session.run()` via onnxruntime, gestion multi-têtes
+>   (U-Net) par nom de sortie. Message d'erreur capé à 300 chars (plus de JSON Keras en clair).
+> - `requirements.txt` : tensorflow/keras/torch supprimés → `onnxruntime==1.20.1`. Image -600 MB.
+> - `requirements/base.txt` : `onnxruntime==1.20.1` ajouté pour les smoke tests CI.
+> - `requirements-train.txt` : nouveau fichier pour la machine ML (TF 2.16.1 + Keras 3.13.2 + PyTorch).
+> - `scripts/convert_to_onnx.py` : script de conversion .keras/.pt → .onnx pour la machine ML.
+> - `README_ONNX_UPDATE.md` : guide complet pas-à-pas.
+> - `tests/smoke/test_core.py` : adapté à ONNX (25 tests verts, sans mock TF).
+>
+> **ÉTAPE SUIVANTE BLOQUANTE (action utilisateur — machine ML, conda GPUMachineLearning) :**
+> ```bash
+> pip install tf2onnx>=1.16 onnx>=1.16
+> git pull
+> dvc pull artifacts/
+> python scripts/convert_to_onnx.py
+> dvc add artifacts/models/ && dvc push
+> git commit -m "feat(models): convertit tous les modèles en ONNX"
+> git push
+> bash scripts/redeploy-k3s.sh 2026-06-16a
+> ```
+>
+> **Règles ONNX (remplacent les règles Keras) :**
+> - `PROBLEMS` dans `model_registry.py` → extensions `.onnx`. Plus de `.keras` ni `.pt` pour l'inférence.
+> - La règle `keras==3.3.3` est **OBSOLÈTE** — remplacée par ONNX.
+> - Pour l'entraînement : `pip install -r requirements-train.txt` (inclut TF + Keras 3.13.2 + PyTorch + tf2onnx).
+
 ## 🤝 Handoff 2026-06-15 — Architecture DVC+S3 + fixes déploiement (DÉPLOYÉ)
 
 > **Image prod active : `medvision-ai:2026-06-15f`** — namespace `medvision`, cluster k3s OVH.
@@ -29,6 +63,35 @@ This file defines Claude Code execution rules for `medvision-ai`.
 > 1. Entraîner de vrais modèles : `conda activate GPUMachineLearning && dvc repro`
 > 2. `dvc push` → rebuild ECR → redeploy (les pods feront `dvc pull` automatiquement)
 > 3. Voir `ONBOARDING_perso_inspiron_ubuntu.md` pour les commandes propres à la machine locale.
+
+## CI Workflow (Mandatory — s'applique à Claude, Copilot, Gemini, tout agent)
+
+Avant tout push ou PR, exécuter la CI locale :
+```bash
+bash scripts/ci_local.sh
+```
+
+Ce script est le miroir exact de `.github/workflows/ci.yml` :
+1. `ruff check src/ tests/` — lint Python
+2. `pytest tests/smoke/ -q` — tests sans TF (~5 s)
+3. `shellcheck -x` — 5 scripts shell maintenus
+
+Les hooks sont dans `.githooks/` (activer avec `git config core.hooksPath .githooks`) :
+- `pre-commit` : ruff + shellcheck + détection de secrets (sur les fichiers staged)
+- `pre-push` : délègue à `scripts/ci_local.sh` automatiquement
+
+**Ne jamais pousser avec la CI rouge.** Corriger la vraie cause — jamais `--no-verify`.
+
+## PR Workflow (Mandatory — s'applique à tout agent)
+
+Toute session de travail significative DOIT se terminer par une PR :
+1. Commits propres (un sujet par commit, conventionnel, lisible à voix haute)
+2. CI locale verte (`bash scripts/ci_local.sh`)
+3. Demander confirmation push à l'utilisateur
+4. `git push` puis `gh pr create`
+5. **Ajouter le lien de la PR dans le handoff du fichier agentique** (CLAUDE.md, copilot-instructions.md, GEMINI.md)
+
+Le lien PR permet à tout agent de reprendre en contexte lors de la session suivante.
 
 ## Mandatory Sources of Truth
 - `README.md` (MANDATORY: Must exist, create if missing)

@@ -2,6 +2,22 @@
 
 These rules are mandatory for all coding tasks in medvision-ai.
 
+## 🤝 Handoff 2026-06-16 — Migration ONNX (branche feat/ci-quality-2026-06-15)
+
+> **Image à construire : `medvision-ai:2026-06-16a`** — après conversion des modèles sur machine ML.
+>
+> **Ce qui a été livré :**
+> - `load_onnx_model()` dans `model_registry.py` remplace `load_tf_model()`. Tous les modèles → `.onnx`.
+> - `_predict()` dans `streamlit_app.py` utilise `onnxruntime` + gestion sorties multi-têtes (U-Net).
+> - `requirements.txt` allégé : tensorflow/keras/torch → `onnxruntime==1.20.1`. Image -600 MB.
+> - `scripts/convert_to_onnx.py` + `README_ONNX_UPDATE.md` : outils pour la conversion sur machine ML.
+> - 25 smoke tests verts, ruff propre, shellcheck propre.
+>
+> **Règle ONNX :** la règle `keras==3.3.3` est **OBSOLÈTE**. Pour l'inférence → `onnxruntime`.
+> Pour l'entraînement → `pip install -r requirements-train.txt` (TF 2.16.1 + Keras 3.13.2).
+>
+> **Action requise (machine ML) :** voir `README_ONNX_UPDATE.md`.
+
 ## 🤝 Handoff 2026-06-15 — Architecture DVC+S3 + fixes déploiement (DÉPLOYÉ)
 
 > **Image prod active : `medvision-ai:2026-06-15f`** — namespace `medvision`.
@@ -19,6 +35,26 @@ These rules are mandatory for all coding tasks in medvision-ai.
 > **Règle PVC** : données dans `/app/data/raw` via PVC `medvision-raw-data` (persistent). Copier via `kubectl cp`, pas rebuild image.
 >
 > Pour reprendre : lire `CLAUDE.md` (handoff) + `ROADMAP.md` + `ONBOARDING_perso_inspiron_ubuntu.md`.
+
+## CI Workflow (Mandatory)
+
+Avant tout push ou PR :
+```bash
+bash scripts/ci_local.sh   # ruff + smoke tests + shellcheck
+```
+
+Hooks actifs dans `.githooks/` (activer : `git config core.hooksPath .githooks`).
+Ne jamais passer `--no-verify`. Ne jamais pousser avec la CI rouge.
+
+## PR Workflow (Mandatory)
+
+Toute session significative se termine par une PR. Après `git push` :
+```bash
+gh pr create --title "..." --body "..."
+```
+Ajouter le lien PR dans le handoff de **tous** les fichiers agentiques
+(`CLAUDE.md`, `copilot-instructions.md`, `GEMINI.md`) afin que la session suivante
+puisse reprendre avec le contexte complet.
 
 ## Chat Guardrails
 - On the first chat of a session, read project documentation before any significant action (at minimum the `doc` or `docs` folder when present, plus `README.md`, `INFRASTRUCTURE.md` if present, `SKILLS.md` if present, and `ROADMAP.md` if present).

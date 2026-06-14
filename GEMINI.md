@@ -2,23 +2,45 @@
 
 This file defines execution rules for Google's AI assistants and IDEs in `medvision-ai`:
 
+## 🤝 Handoff 2026-06-16 — Migration ONNX (branche feat/ci-quality-2026-06-15)
+
+> **Image à construire : `medvision-ai:2026-06-16a`** — après conversion des modèles.
+> **À lire en premier** : `CLAUDE.md` (handoff complet) + `README_ONNX_UPDATE.md`.
+>
+> **Règles critiques (mises à jour) :**
+> - **ONNX** : les modèles sont en `.onnx`. `onnxruntime==1.20.1` dans `requirements.txt`.
+>   La règle `keras==3.3.3` est **OBSOLÈTE** — abandonnée au profit d'ONNX.
+> - **Entraînement** : `pip install -r requirements-train.txt` (TF + Keras 3.13.2 + PyTorch + tf2onnx).
+> - **Conversion** : `python scripts/convert_to_onnx.py` sur machine ML avant tout build image.
+> - `dvc pull artifacts/` pour récupérer les modèles .onnx (ou .keras avant conversion).
+> - Modèles dans S3 via DVC, pas dans l'image Docker (`artifacts/` exclu de `.dockerignore`).
+> - Données dataset dans PVC `medvision-raw-data` → `kubectl cp` pour ajouter, pas rebuild image.
+
 ## 🤝 Handoff 2026-06-15 — Architecture DVC+S3 + fixes déploiement (DÉPLOYÉ)
 
 > **Image prod : `medvision-ai:2026-06-15f`** — namespace `medvision`, k3s OVH.
->
-> **À lire en premier** : `CLAUDE.md` (handoff complet) + `ROADMAP.md` + `ONBOARDING_perso_inspiron_ubuntu.md`.
->
-> **Règles critiques** :
-> - `keras==3.3.3` obligatoire dans requirements.txt (sinon AttributeError au chargement des modèles)
-> - `dvc pull train_chest_xray train_brain_mri train_brain_tumor_segmentation` (stages, pas `dvc pull` seul)
-> - Modèles dans S3, pas dans l'image Docker (`artifacts/` exclu de `.dockerignore`)
-> - Données dataset dans PVC `medvision-raw-data` → `kubectl cp` pour ajouter, pas rebuild
-> - `git` doit être dans le Dockerfile (`apt-get install git`) — `python:3.10-slim` ne l'inclut pas
+> **Règle keras (OBSOLÈTE depuis 2026-06-16)** : remplacée par ONNX (voir handoff ci-dessus).
 
 
 - **Gemini CLI** (`gemini` command)
 - **Gemini Assistant** (VS Code extension)
 - **Antigravity IDE** (Google AI development platform)
+
+## CI Workflow (Mandatory — s'applique à tout agent)
+
+Avant tout push ou PR :
+```bash
+bash scripts/ci_local.sh   # ruff + smoke tests + shellcheck
+```
+Hooks dans `.githooks/` (`git config core.hooksPath .githooks`). Ne jamais `--no-verify`.
+
+## PR Workflow (Mandatory — s'applique à tout agent)
+
+Toute session significative → une PR. Après `git push` :
+```bash
+gh pr create --title "..." --body "..."
+```
+Ajouter le lien PR dans le handoff de **tous** les fichiers agentiques (`CLAUDE.md`, `copilot-instructions.md`, `GEMINI.md`).
 
 ## Mandatory Sources of Truth
 - `README.md` (MANDATORY: Must exist, create if missing)
