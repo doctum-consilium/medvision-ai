@@ -1,8 +1,8 @@
 from __future__ import annotations
 
 import hashlib
-from pathlib import Path
 import tempfile
+from pathlib import Path
 from typing import Any
 
 import numpy as np
@@ -12,7 +12,6 @@ from PIL import Image
 
 from src.preprocessing.image_loader import load_and_preprocess_image
 from src.registry.model_registry import compare_models, get_model_entry, load_registry, load_tf_model
-
 
 IMAGE_EXTENSIONS = {".png", ".jpg", ".jpeg", ".bmp", ".webp"}
 
@@ -548,7 +547,6 @@ problems = registry["problems"]
 with st.sidebar:
     st.header("Control Panel")
     problem = st.selectbox("Problem", options=list(problems.keys()), format_func=lambda key: problems[key]["label"])
-    show_registry = st.toggle("Show full registry JSON", value=False)
 
 problem_meta = problems[problem]
 is_segmentation_problem = problem_meta["task_type"] == "segmentation_multitask"
@@ -715,12 +713,25 @@ with tab_predict:
                 prob_rows = []
                 overlays = []
                 seg_debug_rows = []
+                prediction_errors = []
 
-                with st.spinner("Running predictions..."):
+                with st.spinner("Calcul des prédictions..."):
                     for model_name in selected_models:
                         if predict_path is None:
                             continue
-                        result = _predict(problem, model_name, predict_path, mask_threshold=mask_threshold)
+                        try:
+                            result = _predict(problem, model_name, predict_path, mask_threshold=mask_threshold)
+                        except FileNotFoundError:
+                            prediction_errors.append(
+                                f"**{model_name}** — modèle introuvable. "
+                                "Entraîner le modèle et faire `dvc push`, puis redéployer."
+                            )
+                            continue
+                        except Exception as exc:
+                            prediction_errors.append(
+                                f"**{model_name}** — prédiction impossible : {type(exc).__name__}: {exc}"
+                            )
+                            continue
                         prediction_rows.append(
                             {
                                 "model": model_name,
@@ -746,62 +757,64 @@ with tab_predict:
                                 }
                             )
 
-                with right_col:
-                    st.markdown("#### Prediction Cards")
-                    for row in prediction_rows:
-                        st.markdown(
-                            f"""
+                for err_msg in prediction_errors:
+                    st.error(err_msg)
+
+                if prediction_rows:
+                    with right_col:
+                        st.markdown("#### Résultats")
+                        for row in prediction_rows:
+                            st.markdown(
+                                f"""
 <div class="pred-card">
   <h4>{row['model']}</h4>
-  <div class="pred-meta">Prediction: <strong>{row['predicted_class']}</strong></div>
-  <div class="pred-meta">Confidence: <strong>{row['confidence']:.3f}</strong></div>
+  <div class="pred-meta">Prédiction : <strong>{row['predicted_class']}</strong></div>
+  <div class="pred-meta">Confiance : <strong>{row['confidence']:.3f}</strong></div>
 </div>
-                            """,
-                            unsafe_allow_html=True,
-                        )
+                                """,
+                                unsafe_allow_html=True,
+                            )
 
-                st.markdown("#### Prediction Table")
-                st.dataframe(pd.DataFrame(prediction_rows), use_container_width=True)
+                    st.markdown("#### Tableau de prédictions")
+                    st.dataframe(pd.DataFrame(prediction_rows), use_container_width=True)
 
-                if prob_rows:
-                    st.markdown("#### Class Probabilities")
-                    prob_df = pd.DataFrame(prob_rows)
-                    st.dataframe(prob_df, use_container_width=True)
-                    prob_chart = prob_df.set_index("model")
-                    st.bar_chart(prob_chart, use_container_width=True)
+                    if prob_rows:
+                        st.markdown("#### Probabilités par classe")
+                        prob_df = pd.DataFrame(prob_rows)
+                        st.dataframe(prob_df, use_container_width=True)
+                        prob_chart = prob_df.set_index("model")
+                        st.bar_chart(prob_chart, use_container_width=True)
 
-                if overlays:
-                    st.markdown("#### Segmentation View")
-                    st.dataframe(pd.DataFrame(seg_debug_rows), use_container_width=True)
+                    if overlays:
+                        st.markdown("#### Segmentation")
+                        st.dataframe(pd.DataFrame(seg_debug_rows), use_container_width=True)
 
-                    if all(row["mask_foreground_ratio"] == 0.0 for row in seg_debug_rows):
-                        st.warning(
-                            "All binary masks are empty at the current threshold. "
-                            "Try lowering the threshold (for example 0.30 or 0.20) and inspect the probability map."
-                        )
+                        if all(row["mask_foreground_ratio"] == 0.0 for row in seg_debug_rows):
+                            st.warning(
+                                "Tous les masques sont vides au seuil actuel. "
+                                "Essayer un seuil plus bas (0.30 ou 0.20) et inspecter la carte de probabilité."
+                            )
 
-                    for model_name, image, mask, mask_prob in overlays:
-                        st.markdown(f"##### {model_name}")
-                        c1, c2, c3, c4 = st.columns([1, 1, 1.2, 1])
-                        with c1:
-                            st.caption("Preprocessed image")
-                            st.image(image, use_container_width=True)
-                        with c2:
-                            st.caption("Binary mask")
-                            st.image(mask, clamp=True, use_container_width=True)
-                        with c3:
-                            st.caption("Overlay")
-                            st.image(_blend_overlay(image, mask), use_container_width=True)
-                        with c4:
-                            st.caption("Probability map")
-                            st.image(mask_prob, clamp=True, use_container_width=True)
+                        for model_name, image, mask, mask_prob in overlays:
+                            st.markdown(f"##### {model_name}")
+                            c1, c2, c3, c4 = st.columns([1, 1, 1.2, 1])
+                            with c1:
+                                st.caption("Image prétraitée")
+                                st.image(image, use_container_width=True)
+                            with c2:
+                                st.caption("Masque binaire")
+                                st.image(mask, clamp=True, use_container_width=True)
+                            with c3:
+                                st.caption("Superposition")
+                                st.image(_blend_overlay(image, mask), use_container_width=True)
+                            with c4:
+                                st.caption("Carte de probabilité")
+                                st.image(mask_prob, clamp=True, use_container_width=True)
+
             finally:
                 if tmp_path is not None:
                     tmp_path.unlink(missing_ok=True)
 
 with tab_registry:
-    st.subheader("Registry Snapshot")
-    if show_registry:
-        st.json(registry)
-    else:
-        st.info("Enable 'Show full registry JSON' in the left panel to display raw registry data.")
+    st.subheader("Registry")
+    st.json(registry)

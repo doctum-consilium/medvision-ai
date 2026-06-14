@@ -3,20 +3,27 @@ from __future__ import annotations
 import json
 from functools import lru_cache
 from pathlib import Path
-from typing import Any, Dict, List
-
-import tensorflow as tf
+from typing import Any
 
 from src.utils.config import load_config
 
+
+class ModelNotFoundError(FileNotFoundError):
+    """Le fichier .keras/.pt est absent du répertoire artifacts/models/."""
+
+
+class ModelLoadError(RuntimeError):
+    """Le modèle existe mais n'a pas pu être chargé (corruption, incompatibilité Keras)."""
+
 DEFAULT_ARTIFACTS_DIR = Path("artifacts")
 
-PROBLEMS: Dict[str, Dict[str, Any]] = {
+PROBLEMS: dict[str, dict[str, Any]] = {
     "chest_xray": {
         "label": "Chest X-ray Pneumonia Classification",
         "config_path": "configs/config.yaml",
         "model_candidates": {
             "baseline": "baseline_model.keras",
+            "optimized": "optimized_model.keras",
             "densenet121": "densenet121_model.keras",
             "efficientnetv2b0": "efficientnetv2b0_model.keras",
             "convnexttiny": "convnexttiny_model.keras",
@@ -24,6 +31,7 @@ PROBLEMS: Dict[str, Dict[str, Any]] = {
         },
         "report_candidates": {
             "baseline": "baseline_classification_report.txt",
+            "optimized": "optimized_classification_report.txt",
             "densenet121": "densenet121_classification_report.txt",
             "efficientnetv2b0": "efficientnetv2b0_classification_report.txt",
             "convnexttiny": "convnexttiny_classification_report.txt",
@@ -31,6 +39,7 @@ PROBLEMS: Dict[str, Dict[str, Any]] = {
         },
         "metrics_candidates": {
             "baseline": ["baseline_metrics.json"],
+            "optimized": ["optimized_metrics.json"],
             "densenet121": ["densenet121_metrics.json"],
             "efficientnetv2b0": ["efficientnetv2b0_metrics.json"],
             "convnexttiny": ["convnexttiny_metrics.json"],
@@ -43,6 +52,7 @@ PROBLEMS: Dict[str, Dict[str, Any]] = {
         "label": "Brain MRI Tumor Classification",
         "config_path": "configs/brain_tumor_mri.yaml",
         "model_candidates": {
+            "optimized": "brain_mri_optimized.keras",
             "baseline": "brain_mri_baseline.keras",
             "densenet121": "brain_mri_densenet121.keras",
             "efficientnetv2b0": "brain_mri_efficientnetv2b0.keras",
@@ -53,6 +63,7 @@ PROBLEMS: Dict[str, Dict[str, Any]] = {
             "swin_v2_s_torch": "brain_mri_swin_v2_s_torch.pt",
         },
         "report_candidates": {
+            "optimized": "brain_mri_optimized_classification_report.txt",
             "baseline": "brain_mri_baseline_classification_report.txt",
             "densenet121": "brain_mri_densenet121_classification_report.txt",
             "efficientnetv2b0": "brain_mri_efficientnetv2b0_classification_report.txt",
@@ -60,9 +71,10 @@ PROBLEMS: Dict[str, Dict[str, Any]] = {
             "resnet50v2": "brain_mri_resnet50v2_classification_report.txt",
         },
         "metrics_candidates": {
+            "optimized": ["brain_mri_metrics.json"],
             "baseline": ["brain_mri_baseline_metrics.json"],
             "densenet121": ["brain_mri_densenet121_metrics.json"],
-            "efficientnetv2b0": ["brain_mri_efficientnetv2b0_metrics.json", "brain_mri_metrics.json"],
+            "efficientnetv2b0": ["brain_mri_efficientnetv2b0_metrics.json"],
             "convnexttiny": ["brain_mri_convnexttiny_metrics.json"],
             "resnet50v2": ["brain_mri_resnet50v2_metrics.json"],
             "densenet121_torch": ["brain_mri_densenet121_torch_metrics.json"],
@@ -99,7 +111,7 @@ PROBLEMS: Dict[str, Dict[str, Any]] = {
 }
 
 
-def _load_json(path: Path) -> Dict[str, Any]:
+def _load_json(path: Path) -> dict[str, Any]:
     if not path.exists():
         return {}
     try:
@@ -108,7 +120,7 @@ def _load_json(path: Path) -> Dict[str, Any]:
         return {}
 
 
-def _find_first_existing(directory: Path, names: List[str] | tuple[str, ...]) -> Path | None:
+def _find_first_existing(directory: Path, names: list[str] | tuple[str, ...]) -> Path | None:
     for name in names:
         if not name:
             continue
@@ -118,15 +130,15 @@ def _find_first_existing(directory: Path, names: List[str] | tuple[str, ...]) ->
     return None
 
 
-def load_registry(artifacts_dir: str | Path = DEFAULT_ARTIFACTS_DIR) -> Dict[str, Any]:
+def load_registry(artifacts_dir: str | Path = DEFAULT_ARTIFACTS_DIR) -> dict[str, Any]:
     artifacts_dir = Path(artifacts_dir)
     models_dir = artifacts_dir / "models"
     reports_dir = artifacts_dir / "reports"
-    registry: Dict[str, Any] = {"problems": {}}
+    registry: dict[str, Any] = {"problems": {}}
 
     for problem_key, spec in PROBLEMS.items():
         config = load_config(spec["config_path"]) if Path(spec["config_path"]).exists() else {}
-        problem_entry: Dict[str, Any] = {
+        problem_entry: dict[str, Any] = {
             "label": spec["label"],
             "task_type": spec["task_type"],
             "class_names": config.get("class_names", spec["class_names"]),
@@ -151,32 +163,51 @@ def load_registry(artifacts_dir: str | Path = DEFAULT_ARTIFACTS_DIR) -> Dict[str
     return registry
 
 
-def _compat_dense_from_config(cls, config):
-    """Drop legacy `quantization_config` when loading older Keras artifacts."""
-
-    cfg = dict(config)
-    cfg.pop("quantization_config", None)
-    return _ORIGINAL_DENSE_FROM_CONFIG.__func__(cls, cfg)
-
-
-_ORIGINAL_DENSE_FROM_CONFIG = tf.keras.layers.Dense.from_config
-
-
 @lru_cache(maxsize=16)
-def load_tf_model(model_path: str) -> tf.keras.Model:
+def load_tf_model(model_path: str):
+    """Charge un modèle Keras depuis le chemin donné.
+
+    L'import TensorFlow est différé au premier appel (lazy) pour que l'import
+    du registry soit instantané même si TF n'est pas installé dans l'env courant.
+
+    Args:
+        model_path: Chemin absolu vers le fichier .keras.
+
+    Returns:
+        tf.keras.Model prêt pour l'inférence (non compilé).
+
+    Raises:
+        ModelNotFoundError: Le fichier n'existe pas.
+        ModelLoadError: Le fichier existe mais la désérialisation a échoué.
+    """
+    import tensorflow as tf  # noqa: PLC0415 — import intentionnellement différé
+
+    if not Path(model_path).exists():
+        raise ModelNotFoundError(f"Modèle introuvable : {model_path}")
+
+    # Patch de compatibilité Keras < 3.3 : `quantization_config` inconnu dans Dense.
+    original_dense_from_config = tf.keras.layers.Dense.from_config
+
+    def _compat_dense_from_config(cls, config):
+        cfg = dict(config)
+        cfg.pop("quantization_config", None)
+        return original_dense_from_config.__func__(cls, cfg)
+
     try:
         return tf.keras.models.load_model(model_path, compile=False)
     except TypeError:
-        # Keras may deserialize Dense by module path and bypass custom_objects.
-        # Patching Dense.from_config ensures legacy configs still load.
         tf.keras.layers.Dense.from_config = classmethod(_compat_dense_from_config)
         try:
             return tf.keras.models.load_model(model_path, compile=False)
+        except Exception as exc:
+            raise ModelLoadError(f"Impossible de charger {model_path} : {exc}") from exc
         finally:
-            tf.keras.layers.Dense.from_config = _ORIGINAL_DENSE_FROM_CONFIG
+            tf.keras.layers.Dense.from_config = original_dense_from_config
+    except Exception as exc:
+        raise ModelLoadError(f"Impossible de charger {model_path} : {exc}") from exc
 
 
-def get_model_entry(problem: str, model_name: str, artifacts_dir: str | Path = DEFAULT_ARTIFACTS_DIR) -> Dict[str, Any]:
+def get_model_entry(problem: str, model_name: str, artifacts_dir: str | Path = DEFAULT_ARTIFACTS_DIR) -> dict[str, Any]:
     registry = load_registry(artifacts_dir)
     problem_entry = registry["problems"].get(problem)
     if not problem_entry:
@@ -187,13 +218,13 @@ def get_model_entry(problem: str, model_name: str, artifacts_dir: str | Path = D
     return {**model_entry, "class_names": problem_entry["class_names"], "task_type": problem_entry["task_type"]}
 
 
-def compare_models(problem: str, artifacts_dir: str | Path = DEFAULT_ARTIFACTS_DIR) -> List[Dict[str, Any]]:
+def compare_models(problem: str, artifacts_dir: str | Path = DEFAULT_ARTIFACTS_DIR) -> list[dict[str, Any]]:
     registry = load_registry(artifacts_dir)
     problem_entry = registry["problems"].get(problem)
     if not problem_entry:
         raise KeyError(f"Unknown problem: {problem}")
 
-    rows: List[Dict[str, Any]] = []
+    rows: list[dict[str, Any]] = []
     for model_name, model_entry in problem_entry["models"].items():
         row = {
             "model_name": model_name,
