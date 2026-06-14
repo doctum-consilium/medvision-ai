@@ -29,7 +29,8 @@ REGISTRY="113301685315.dkr.ecr.eu-west-3.amazonaws.com/platform"
 REGION="eu-west-3"
 IMAGE="${REGISTRY}/medvision-ai"
 NAMESPACE="medvision"
-WORKER_SSH="yannsmatti@51.38.235.94"
+WORKER_SSH_B="yannsmatti@51.38.235.94"   # worker-ovh-094 (apps-b)
+WORKER_SSH_A="yannsmatti@141.94.121.233" # worker-ovh-233 (apps-a)
 
 # Repo k3s — chemin relatif au répertoire parent de medvision-ai
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
@@ -37,7 +38,7 @@ REPO_ROOT="$(git -C "$SCRIPT_DIR" rev-parse --show-toplevel)"
 K3S_REPO="${K3S_REPO:-$(cd "$REPO_ROOT/.." && pwd)/k3s-fromOVHVps}"
 MANIFEST="${K3S_REPO}/rendered-k3s-manifests/30-medvision.yaml"
 
-TAG="2026-06-15f"
+TAG="2026-06-16b"
 FULL_RECOVERY=false
 
 for arg in "$@"; do
@@ -155,9 +156,13 @@ kubectl create secret docker-registry ecr-pull-secret \
   --docker-password="$ECR_TOKEN" \
   --dry-run=client -o yaml | kubectl apply -f -
 
-# Méthode B : registries.yaml sur le nœud worker (containerd)
-log "Refresh containerd registries.yaml sur $WORKER_SSH…"
-ssh -o StrictHostKeyChecking=no "$WORKER_SSH" "
+# Méthode B : registries.yaml sur chaque nœud worker (containerd)
+# apps-b = worker-ovh-094, apps-a = worker-ovh-233.
+# apps-c (vps-7f9dbc3f) utilise uniquement ecr-pull-secret (SSH non configuré).
+_refresh_worker() {
+  local host="$1" label="$2"
+  log "Refresh containerd registries.yaml sur ${label} (${host})…"
+  ssh -o StrictHostKeyChecking=no -o ConnectTimeout=10 "$host" "
 set -euo pipefail
 sudo mkdir -p /etc/rancher/k3s
 cat <<YAML | sudo tee /etc/rancher/k3s/registries.yaml
@@ -173,7 +178,11 @@ configs:
 YAML
 sudo systemctl restart k3s-agent
 echo 'k3s-agent redémarré'
-" || warn "SSH vers $WORKER_SSH a échoué — ecr-pull-secret sera utilisé à la place."
+" || warn "SSH vers ${host} a échoué — ecr-pull-secret sera utilisé à la place."
+}
+
+_refresh_worker "$WORKER_SSH_B" "apps-b (worker-ovh-094)"
+_refresh_worker "$WORKER_SSH_A" "apps-a (worker-ovh-233)"
 sleep 10
 
 # ─── 4. Secret AWS (pour dvc pull depuis S3 au démarrage du pod) ─────────────
@@ -198,9 +207,10 @@ kubectl apply -f "$MANIFEST"
 # tag réel). Pour un tag permanent, mettre à jour 30-medvision.yaml dans
 # k3s-fromOVHVps et commiter.
 log "Mise à jour de l'image → ${IMAGE}:${TAG}"
-kubectl set image deployment/medvision-api     api=      "${IMAGE}:${TAG}" -n "$NAMESPACE"
-kubectl set image deployment/medvision-streamlit streamlit="${IMAGE}:${TAG}" -n "$NAMESPACE"
-kubectl set image deployment/medvision-mlflow  mlflow=   "${IMAGE}:${TAG}" -n "$NAMESPACE"
+NEW_IMAGE="${IMAGE}:${TAG}"
+kubectl set image deployment/medvision-api      "api=${NEW_IMAGE}"       -n "$NAMESPACE"
+kubectl set image deployment/medvision-streamlit "streamlit=${NEW_IMAGE}" -n "$NAMESPACE"
+kubectl set image deployment/medvision-mlflow   "mlflow=${NEW_IMAGE}"    -n "$NAMESPACE"
 
 # ─── 7. Attente des rollouts ─────────────────────────────────────────────────
 log "Attente rollout medvision-api…"
