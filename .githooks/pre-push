@@ -1,0 +1,11 @@
+#!/usr/bin/env bash
+# pre-push — rejoue EN LOCAL toute la CI avant de pousser sur origin.
+#
+# Délègue à scripts/ci_local.sh (miroir exact de .github/workflows/ci.yml) :
+# ruff, tests smoke, shellcheck. But : ne pas découvrir un échec rouge sur la
+# PR APRÈS le push.
+
+set -uo pipefail
+REPO_ROOT="$(git rev-parse --show-toplevel)"
+
+exec bash "$REPO_ROOT/scripts/ci_local.sh"
