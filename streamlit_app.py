@@ -11,7 +11,7 @@ import streamlit as st
 from PIL import Image
 
 from src.preprocessing.image_loader import load_and_preprocess_image
-from src.registry.model_registry import compare_models, get_model_entry, load_registry, load_tf_model
+from src.registry.model_registry import compare_models, get_model_entry, load_onnx_model, load_registry
 
 IMAGE_EXTENSIONS = {".png", ".jpg", ".jpeg", ".bmp", ".webp"}
 
@@ -374,17 +374,44 @@ def _build_problem_image_database(problem: str, expected_labels: list[str] | Non
     return []
 
 
+def _run_onnx(session: Any, image: np.ndarray) -> dict[str, np.ndarray]:
+    """Exécute l'inférence ONNX et retourne un dict {nom_sortie: valeur}.
+
+    Args:
+        session: onnxruntime.InferenceSession chargée par load_onnx_model().
+        image: Image prétraitée (H, W, C), float32 ou float64.
+
+    Returns:
+        Dict {nom_de_sortie: array numpy} — fonctionne pour les modèles
+        mono-tête (classification) comme multi-têtes (segmentation + classification).
+    """
+    input_name = session.get_inputs()[0].name
+    x = image.astype(np.float32)[np.newaxis, ...]  # (1, H, W, C)
+    out_names = [o.name for o in session.get_outputs()]
+    outputs = session.run(None, {input_name: x})
+    return dict(zip(out_names, outputs, strict=True))
+
+
 def _predict(problem: str, model_name: str, image_path: Path, mask_threshold: float = 0.5) -> dict:
     model_entry = get_model_entry(problem, model_name)
-    model = load_tf_model(str(Path(model_entry["model_path"]).resolve()))
+    session = load_onnx_model(str(Path(model_entry["model_path"]).resolve()))
+
     image_size = 256 if "segmentation" in problem else 224
     image = load_and_preprocess_image(image_path, image_size=image_size)
-    batch = np.expand_dims(image, axis=0)
-    raw = model.predict(batch, verbose=0)
+    raw = _run_onnx(session, image)
+
     class_names = model_entry["class_names"]
+    out_names = list(raw.keys())
+
     if model_entry["task_type"] == "segmentation_multitask":
-        seg = raw["segmentation_output"][0, ..., 0]
-        cls = raw["classification_output"][0]
+        # tf2onnx préserve les noms de couches Keras ; fallback sur l'index si absent.
+        seg_key = next((k for k in out_names if "seg" in k.lower()), out_names[0])
+        cls_key = next(
+            (k for k in out_names if "class" in k.lower() or "cls" in k.lower()),
+            out_names[-1],
+        )
+        seg = raw[seg_key][0, ..., 0]
+        cls = raw[cls_key][0]
         if len(class_names) == 2:
             probs = {class_names[0]: float(1 - cls[0]), class_names[1]: float(cls[0])}
         else:
@@ -405,12 +432,14 @@ def _predict(problem: str, model_name: str, image_path: Path, mask_threshold: fl
             "mask_prob_min": float(np.min(seg)),
             "image": image,
         }
+
+    # Classification (binary ou multiclass) — une seule sortie
+    logits = raw[out_names[0]][0]
     if model_entry["task_type"] == "binary":
-        p1 = float(raw[0][0]) if np.ndim(raw) > 1 else float(raw[0])
+        p1 = float(logits[0]) if logits.ndim > 0 else float(logits)
         probs = {class_names[0]: float(1 - p1), class_names[1]: p1}
     else:
-        raw = raw[0]
-        probs = {name: float(raw[i]) for i, name in enumerate(class_names)}
+        probs = {name: float(logits[i]) for i, name in enumerate(class_names)}
     pred = max(probs.items(), key=lambda item: item[1])[0]
     confidence = float(max(probs.values()))
     return {"predicted_class": pred, "confidence": confidence, "probabilities": probs, "metrics": model_entry.get("metrics", {})}
@@ -728,8 +757,13 @@ with tab_predict:
                             )
                             continue
                         except Exception as exc:
+                            # Limiter la longueur : str(exc) peut contenir des milliers de
+                            # caractères (ex. config JSON Keras) si le modèle n'est pas chargé.
+                            msg = str(exc)
+                            if len(msg) > 300:
+                                msg = msg[:300] + "…"
                             prediction_errors.append(
-                                f"**{model_name}** — prédiction impossible : {type(exc).__name__}: {exc}"
+                                f"**{model_name}** — {type(exc).__name__}: {msg}"
                             )
                             continue
                         prediction_rows.append(
