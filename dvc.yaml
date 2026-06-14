@@ -129,3 +129,17 @@ stages:
     metrics:
       - artifacts/reports/chest_xray_segmentation_unet_metrics.json:
           cache: false
+
+  convert_to_onnx:
+    cmd: python scripts/convert_to_onnx.py
+    deps:
+      - scripts/convert_to_onnx.py
+      - artifacts/models/optimized_model.keras
+      - artifacts/models/brain_mri_optimized.keras
+      - artifacts/models/brain_tumor_segmentation_unet.keras
+      - artifacts/models/baseline_model.keras
+    outs:
+      - artifacts/models/optimized_model.onnx
+      - artifacts/models/brain_mri_optimized.onnx
+      - artifacts/models/brain_tumor_segmentation_unet.onnx
+      - artifacts/models/baseline_model.onnx
