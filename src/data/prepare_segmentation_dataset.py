@@ -8,7 +8,6 @@ from pathlib import Path
 from src.segmentation.datasets.manifest import build_manifest
 from src.utils.config import load_config
 
-
 DEFAULT_LABELS = {
     'brain': ['glioma', 'meningioma', 'pituitary', 'notumor'],
     'chest': ['NORMAL', 'ABNORMAL', 'normal', 'abnormal'],

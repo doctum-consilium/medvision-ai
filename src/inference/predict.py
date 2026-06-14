@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Dict
 
 import numpy as np
 import tensorflow as tf
@@ -13,7 +12,7 @@ def load_model(model_path: str | Path) -> tf.keras.Model:
     return tf.keras.models.load_model(model_path)
 
 
-def predict_from_path(model: tf.keras.Model, image_path: str | Path, image_size: int = 224) -> Dict[str, float | str]:
+def predict_from_path(model: tf.keras.Model, image_path: str | Path, image_size: int = 224) -> dict[str, float | str]:
     image = load_and_preprocess_image(image_path, image_size=image_size)
     batch = np.expand_dims(image, axis=0)
     probability = float(model.predict(batch, verbose=0)[0][0])

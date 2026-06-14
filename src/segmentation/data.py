@@ -2,7 +2,6 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Tuple
 
 import numpy as np
 import pandas as pd
@@ -31,7 +30,7 @@ def _make_dataset(df: pd.DataFrame, image_size: int, batch_size: int, class_to_i
     labels = [class_to_idx.get(lbl, 0) for lbl in df['label'].tolist()]
 
     def gen():
-        for image_path, mask_path, label in zip(image_paths, mask_paths, labels):
+        for image_path, mask_path, label in zip(image_paths, mask_paths, labels, strict=False):
             image = _read_image(image_path, image_size)
             mask = _read_mask(mask_path, image_size)
             if task_type == 'multitask':
@@ -72,7 +71,7 @@ def build_segmentation_datasets(manifest_path: str | Path, image_size: int, batc
 
     if df.empty:
         raise ValueError(f'No rows found in manifest {manifest_path}')
-    labels = sorted([l for l in df['label'].dropna().unique().tolist() if l != 'unknown'])
+    labels = sorted([lbl for lbl in df['label'].dropna().unique().tolist() if lbl != 'unknown'])
     if not labels:
         labels = ['negative', 'positive']
     class_to_idx = {name: idx for idx, name in enumerate(labels)}

@@ -1,0 +1,7 @@
+# Dépendances de développement local (lint + tests).
+# Ne pas inclure dans les images Docker.
+# Installer avec : pip install -r requirements/dev.txt
+-r ci-fast.txt
+ruff==0.9.10
+pytest-cov==6.0.0
+diff-cover==9.2.0

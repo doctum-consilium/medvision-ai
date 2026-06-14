@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Dict, List
 
 import numpy as np
 import tensorflow as tf
@@ -18,9 +17,9 @@ def predict_brain_mri(
     model: tf.keras.Model,
     image_path: str | Path,
     config_path: str | Path = "configs/brain_tumor_mri.yaml",
-) -> Dict[str, object]:
+) -> dict[str, object]:
     cfg = load_config(config_path)
-    class_names: List[str] = cfg["class_names"]
+    class_names: list[str] = cfg["class_names"]
     image_size = int(cfg.get("image_size", 224))
 
     image = load_and_preprocess_image(image_path, image_size=image_size)

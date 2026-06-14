@@ -17,4 +17,5 @@ terraform/
 # Keep processed samples if needed by UI, skip raw datasets by default
 data/raw/
 
-# Keep runtime artifacts when present; do not exclude artifacts/
+# Artefacts ML (modèles, rapports) : gérés par DVC/S3, pas baked dans l'image
+artifacts/

@@ -2,14 +2,20 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
-from typing import Dict, List
 
 import matplotlib.pyplot as plt
 import numpy as np
-from sklearn.metrics import accuracy_score, classification_report, confusion_matrix, f1_score, precision_score, recall_score
+from sklearn.metrics import (
+    accuracy_score,
+    classification_report,
+    confusion_matrix,
+    f1_score,
+    precision_score,
+    recall_score,
+)
 
 
-def evaluate_multiclass_predictions(y_true: np.ndarray, y_pred: np.ndarray, class_names: List[str]) -> Dict[str, float]:
+def evaluate_multiclass_predictions(y_true: np.ndarray, y_pred: np.ndarray, class_names: list[str]) -> dict[str, float]:
     return {
         "accuracy": float(accuracy_score(y_true, y_pred)),
         "precision_macro": float(precision_score(y_true, y_pred, average="macro", zero_division=0)),
@@ -22,17 +28,17 @@ def evaluate_multiclass_predictions(y_true: np.ndarray, y_pred: np.ndarray, clas
     }
 
 
-def build_multiclass_report(y_true: np.ndarray, y_pred: np.ndarray, class_names: List[str]) -> str:
+def build_multiclass_report(y_true: np.ndarray, y_pred: np.ndarray, class_names: list[str]) -> str:
     return classification_report(y_true, y_pred, target_names=class_names, zero_division=0)
 
 
-def save_metrics(metrics: Dict[str, float], output_path: str | Path) -> None:
+def save_metrics(metrics: dict[str, float], output_path: str | Path) -> None:
     path = Path(output_path)
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(json.dumps(metrics, indent=2), encoding="utf-8")
 
 
-def save_confusion_matrix_multiclass(y_true: np.ndarray, y_pred: np.ndarray, output_path: str | Path, class_names: List[str]) -> None:
+def save_confusion_matrix_multiclass(y_true: np.ndarray, y_pred: np.ndarray, output_path: str | Path, class_names: list[str]) -> None:
     cm = confusion_matrix(y_true, y_pred)
     fig, ax = plt.subplots(figsize=(7, 6))
     ax.imshow(cm)

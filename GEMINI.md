@@ -1,6 +1,21 @@
 # GEMINI.md
 
 This file defines execution rules for Google's AI assistants and IDEs in `medvision-ai`:
+
+## 🤝 Handoff 2026-06-15 — Architecture DVC+S3 + fixes déploiement (DÉPLOYÉ)
+
+> **Image prod : `medvision-ai:2026-06-15f`** — namespace `medvision`, k3s OVH.
+>
+> **À lire en premier** : `CLAUDE.md` (handoff complet) + `ROADMAP.md` + `ONBOARDING_perso_inspiron_ubuntu.md`.
+>
+> **Règles critiques** :
+> - `keras==3.3.3` obligatoire dans requirements.txt (sinon AttributeError au chargement des modèles)
+> - `dvc pull train_chest_xray train_brain_mri train_brain_tumor_segmentation` (stages, pas `dvc pull` seul)
+> - Modèles dans S3, pas dans l'image Docker (`artifacts/` exclu de `.dockerignore`)
+> - Données dataset dans PVC `medvision-raw-data` → `kubectl cp` pour ajouter, pas rebuild
+> - `git` doit être dans le Dockerfile (`apt-get install git`) — `python:3.10-slim` ne l'inclut pas
+
+
 - **Gemini CLI** (`gemini` command)
 - **Gemini Assistant** (VS Code extension)
 - **Antigravity IDE** (Google AI development platform)

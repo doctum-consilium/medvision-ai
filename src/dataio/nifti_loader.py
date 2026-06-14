@@ -4,7 +4,6 @@ from pathlib import Path
 
 import numpy as np
 
-
 SUPPORTED_SUFFIXES = {".nii", ".gz", ".npy"}
 
 

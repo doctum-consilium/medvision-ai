@@ -237,6 +237,44 @@ When a PR changes pipeline behavior:
 3. Mention any changed outputs or metrics files.
 4. Update docs if stage contracts changed.
 
+## 11. Ajouter un modèle entraîné dans DVC (workflow standard)
+
+Après avoir entraîné un modèle localement :
+
+```bash
+# 1. Enregistrer l'état actuel des sorties de stage dans DVC
+dvc commit -f
+
+# 2. Envoyer vers S3
+dvc push
+
+# 3. Valider que la synchro est OK
+dvc status
+```
+
+Si tu as entraîné avec un backbone non encore dans dvc.yaml (ex. `densenet121`), ajoute d'abord le fichier produit :
+```bash
+dvc add artifacts/models/densenet121_model.keras
+git add artifacts/models/densenet121_model.keras.dvc .gitignore
+dvc push
+```
+
+## 12. Pull des artefacts dans K3s (entrypoint automatique)
+
+Chaque pod medvision (API et Streamlit) exécute `docker/entrypoint.sh` au démarrage.
+Ce script fait automatiquement :
+```bash
+dvc pull artifacts/models/ artifacts/reports/
+```
+
+Les credentials AWS sont injectés via le Secret K8s `medvision-aws-creds`. Voir `scripts/redeploy-k3s.sh` § 4b.
+
+**Vérifier que le pull a fonctionné dans un pod :**
+```bash
+kubectl exec -n medvision deploy/medvision-streamlit -- ls /app/artifacts/models/
+kubectl exec -n medvision deploy/medvision-streamlit -- cat /tmp/dvc-pull.log
+```
+
 ## 10. Quick command cheat sheet
 
 ```bash

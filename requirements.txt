@@ -7,6 +7,7 @@ nibabel>=5.0
 
 # TensorFlow 2.16.1 is only published for Python <= 3.12.
 tensorflow==2.16.1; python_version < "3.13"
+keras==3.3.3
 numpy==1.26.4
 pandas==2.2.3
 scikit-learn==1.5.2

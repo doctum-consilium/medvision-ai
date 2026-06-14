@@ -1,0 +1,21 @@
+[tool.ruff]
+line-length = 120
+target-version = "py310"
+
+[tool.ruff.lint]
+# E/W = pycodestyle  F = pyflakes  I = isort  B = flake8-bugbear  UP = pyupgrade
+select = ["E", "F", "W", "I", "B", "UP"]
+ignore = [
+    "E501",   # line trop longue — géré par line-length
+    "B008",   # appels de fonctions dans les valeurs par défaut (FastAPI Depends)
+    "UP007",  # X | Y — garder Optional pour compatibilité Python 3.9
+]
+
+[tool.ruff.lint.isort]
+known-first-party = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+python_functions = ["test_*"]
+addopts = "-q --tb=short"

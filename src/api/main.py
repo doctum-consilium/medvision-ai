@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import tempfile
 from pathlib import Path
-from typing import Any, Dict
+from typing import Any
 
 import numpy as np
 from fastapi import FastAPI, File, HTTPException, Query, UploadFile
@@ -13,7 +13,7 @@ from src.registry.model_registry import compare_models, get_model_entry, load_re
 app = FastAPI(title="MedVision AI API", version="3.0.0")
 
 
-def _classification_payload(raw: np.ndarray, model_entry: Dict[str, Any]) -> Dict[str, Any]:
+def _classification_payload(raw: np.ndarray, model_entry: dict[str, Any]) -> dict[str, Any]:
     class_names = model_entry["class_names"]
     task_type = model_entry["task_type"]
     if task_type == "binary":
@@ -30,7 +30,7 @@ def _classification_payload(raw: np.ndarray, model_entry: Dict[str, Any]) -> Dic
     return {"predicted_class": predicted_class, "confidence": confidence, "probabilities": probabilities}
 
 
-def _predict_with_entry(model_entry: Dict[str, Any], image_path: Path, image_size: int = 224) -> Dict[str, Any]:
+def _predict_with_entry(model_entry: dict[str, Any], image_path: Path, image_size: int = 224) -> dict[str, Any]:
     model_path = Path(model_entry["model_path"])
     if not model_path.exists():
         raise HTTPException(status_code=404, detail=f"Model not found: {model_path}")
@@ -92,7 +92,7 @@ async def predict(
     file: UploadFile = File(...),
     problem: str = Query(..., description="Problem id"),
     model_name: str = Query(..., description="Model id"),
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     if not file.filename:
         raise HTTPException(status_code=400, detail="No file provided")
 

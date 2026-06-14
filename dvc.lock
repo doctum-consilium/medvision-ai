@@ -1,0 +1,168 @@
+schema: '2.0'
+stages:
+  train_chest_xray:
+    cmd: python -m src.training.train --config configs/config.yaml --model optimized
+      --epochs 3
+    deps:
+    - path: configs/config.yaml
+      hash: md5
+      md5: b97f2576a29d475faa35382097f91c47
+      size: 467
+    - path: data/raw/chest_xray
+      hash: md5
+      md5: 0c94c06471aee90539b80975d6e88efb.dir
+      size: 196253
+      nfiles: 6
+    - path: src/evaluation/metrics.py
+      hash: md5
+      md5: f5d6dde19efdad58d1ce6a0b58316782
+      size: 2424
+    - path: src/training/train.py
+      hash: md5
+      md5: 767fdf038efef66836dd99bf6e42dba6
+      size: 7554
+    - path: src/utils/dataset.py
+      hash: md5
+      md5: 44dd328d1735054e5b11ba578880aac6
+      size: 1957
+    params:
+      params.yaml:
+        chest_xray:
+          seed: 42
+          image_size: 224
+          batch_size: 16
+          epochs: 3
+          learning_rate: 0.0005
+          validation_split: 0.2
+    outs:
+    - path: artifacts/models/optimized_model.keras
+      hash: md5
+      md5: 978d4cf7cce3bc7ba1b18a367fdb1768
+      size: 11609211
+    - path: artifacts/reports/optimized_classification_report.txt
+      hash: md5
+      md5: c843f1b26b98aa7e3a8a70063e5d7e10
+      size: 75
+    - path: artifacts/reports/optimized_confusion_matrix.png
+      hash: md5
+      md5: 6066c6a69903adac4b825e2aa551e091
+      size: 70
+    - path: artifacts/reports/optimized_history.json
+      hash: md5
+      md5: 27a59a256f430457eacde451576dff2d
+      size: 66
+    - path: artifacts/reports/optimized_metrics.json
+      hash: md5
+      md5: 438459cdaf2431ac4ae6a8127c54b978
+      size: 216
+  train_brain_mri:
+    cmd: python -m src.training.train_brain_mri --config configs/brain_tumor_mri.yaml
+      --model optimized --epochs 10
+    deps:
+    - path: configs/brain_tumor_mri.yaml
+      hash: md5
+      md5: c2fd2144bca6f7fa97a30312b4465589
+      size: 639
+    - path: data/raw/brain_tumor_mri
+      hash: md5
+      md5: 582e9a0389726110c0bcb5ff336d0311.dir
+      size: 392547
+      nfiles: 12
+    - path: src/evaluation/metrics_multiclass.py
+      hash: md5
+      md5: b9cb0de89ee632c0187a15e49aae4e67
+      size: 2294
+    - path: src/training/train_brain_mri.py
+      hash: md5
+      md5: 99ce604e3073c802288511e061993260
+      size: 8213
+    - path: src/utils/dataset_multiclass.py
+      hash: md5
+      md5: 8e4523c7ad6a364e8d5a6505dd56eca1
+      size: 2034
+    params:
+      params.yaml:
+        brain_mri:
+          seed: 42
+          image_size: 224
+          batch_size: 16
+          epochs: 10
+          learning_rate: 0.0001
+          validation_split: 0.2
+    outs:
+    - path: artifacts/models/brain_mri_optimized.keras
+      hash: md5
+      md5: 1ed2a3adae7ecb296cbe707c0f3a0381
+      size: 17105495
+    - path: artifacts/reports/brain_mri_metrics.json
+      hash: md5
+      md5: d68b5cd419d6e535cc36ed6aa9f38ad9
+      size: 215
+    - path: artifacts/reports/brain_mri_optimized_classification_report.txt
+      hash: md5
+      md5: c843f1b26b98aa7e3a8a70063e5d7e10
+      size: 75
+    - path: artifacts/reports/brain_mri_optimized_confusion_matrix.png
+      hash: md5
+      md5: 6066c6a69903adac4b825e2aa551e091
+      size: 70
+    - path: artifacts/reports/brain_mri_optimized_history.json
+      hash: md5
+      md5: 27a59a256f430457eacde451576dff2d
+      size: 66
+  train_brain_tumor_segmentation:
+    cmd: python -m src.segmentation.train_segmentation --config configs/brain_tumor_segmentation.yaml
+      --epochs 10
+    deps:
+    - path: configs/brain_tumor_segmentation.yaml
+      hash: md5
+      md5: 0e6dfac2f798931bff5499943c35095b
+      size: 731
+    - path: data/processed/brain_tumor_segmentation/manifest.csv
+      hash: md5
+      md5: 76e1cae14ea871be11e88bd1f9d83a29
+      size: 984
+    - path: src/segmentation/data.py
+      hash: md5
+      md5: 574d9fb9ad93b48770275960ce0de42c
+      size: 3780
+    - path: src/segmentation/metrics.py
+      hash: md5
+      md5: ff180a097171d431935e939621c5b335
+      size: 1066
+    - path: src/segmentation/overlays.py
+      hash: md5
+      md5: 6d78e222b18b23f6b455d8568822dce0
+      size: 754
+    - path: src/segmentation/train_segmentation.py
+      hash: md5
+      md5: 4a285e5b742bc3f53e5cfc9079423dde
+      size: 14729
+    params:
+      params.yaml:
+        brain_tumor_segmentation:
+          seed: 42
+          image_size: 256
+          batch_size: 8
+          epochs: 10
+          learning_rate: 0.001
+          validation_split: 0.2
+          segmentation_loss_weight: 1.0
+          classification_loss_weight: 0.4
+    outs:
+    - path: artifacts/models/brain_tumor_segmentation_unet.keras
+      hash: md5
+      md5: 4df3c19e15819f6ce58dcb78bcbc71e2
+      size: 94340502
+    - path: artifacts/overlays/brain_tumor_segmentation_unet_sample_overlay.png
+      hash: md5
+      md5: 6066c6a69903adac4b825e2aa551e091
+      size: 70
+    - path: artifacts/reports/brain_tumor_segmentation_unet_history.json
+      hash: md5
+      md5: 27a59a256f430457eacde451576dff2d
+      size: 66
+    - path: artifacts/reports/brain_tumor_segmentation_unet_metrics.json
+      hash: md5
+      md5: f51329a825cad046b968ff26e023a97d
+      size: 70

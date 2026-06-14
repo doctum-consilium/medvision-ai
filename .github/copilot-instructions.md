@@ -2,6 +2,24 @@
 
 These rules are mandatory for all coding tasks in medvision-ai.
 
+## 🤝 Handoff 2026-06-15 — Architecture DVC+S3 + fixes déploiement (DÉPLOYÉ)
+
+> **Image prod active : `medvision-ai:2026-06-15f`** — namespace `medvision`.
+>
+> **Architecture courante** : code dans image ECR, modèles/rapports dans S3 via DVC. Pod → `dvc pull` au démarrage via `docker/entrypoint.sh`. Secret `medvision-aws-creds` fournit les credentials.
+>
+> **Bugs fixés dans cette session :**
+> - `keras==3.3.3` pinné dans `requirements.txt` (3.12.x → AttributeError au load)
+> - `dvc pull` avec stages spécifiques (évite conflit avec data/raw/ non pushée)
+> - `git` installé dans le Dockerfile (`python:3.10-slim` ne l'inclut pas)
+> - MLflow : préfixe `sqlite://` ajouté dans `--backend-store-uri`
+>
+> **Règle keras** : toujours pinner `keras==3.3.3`. Sans pin, pip installe 3.12.x → incompatibilité.
+> **Règle DVC pull** : `dvc pull train_chest_xray train_brain_mri train_brain_tumor_segmentation --no-run-cache` (jamais `dvc pull` seul en prod).
+> **Règle PVC** : données dans `/app/data/raw` via PVC `medvision-raw-data` (persistent). Copier via `kubectl cp`, pas rebuild image.
+>
+> Pour reprendre : lire `CLAUDE.md` (handoff) + `ROADMAP.md` + `ONBOARDING_perso_inspiron_ubuntu.md`.
+
 ## Chat Guardrails
 - On the first chat of a session, read project documentation before any significant action (at minimum the `doc` or `docs` folder when present, plus `README.md`, `INFRASTRUCTURE.md` if present, `SKILLS.md` if present, and `ROADMAP.md` if present).
 - Read `SKILLS.md`, `ROADMAP.md`, and `INFRASTRUCTURE.md` (when present) before any substantial task.
