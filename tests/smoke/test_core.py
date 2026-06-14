@@ -1,38 +1,25 @@
-"""Tests smoke sans TensorFlow — tournent en CI légère et en pre-push.
+"""Tests smoke sans dépendances lourdes (TF / onnxruntime / PyTorch).
 
 Ces tests vérifient les invariants critiques du projet (registry, preprocessing,
-gestion des erreurs) WITHOUT charger TF ou des modèles réels. Ils s'exécutent
-en quelques secondes même sur un poste sans GPU.
+gestion des erreurs) sans charger de modèles réels. Ils s'exécutent en quelques
+secondes même sur un poste sans GPU et en CI légère (job test-fast).
 
 Pour lancer : pytest tests/smoke/test_core.py -v
 """
 from __future__ import annotations
 
-import sys
 from pathlib import Path
-from unittest.mock import MagicMock, patch
 
 import numpy as np
 import pytest
 
-# ── Guard : si TF est dans l'env, OK ; sinon on le mocke ──────────────────
-# Le registry ne l'importe plus au niveau module (lazy import) — mais les
-# fonctions de chargement le font. On mocke pour éviter d'en avoir besoin.
-if "tensorflow" not in sys.modules:
-    tf_mock = MagicMock()
-    sys.modules["tensorflow"] = tf_mock
-    sys.modules["tensorflow.keras"] = tf_mock.keras
-    sys.modules["tensorflow.keras.models"] = tf_mock.keras.models
-    sys.modules["tensorflow.keras.layers"] = tf_mock.keras.layers
-
-# ── Import du code projet ──────────────────────────────────────────────────
-from src.preprocessing.image_loader import load_and_preprocess_image  # noqa: E402
-from src.registry.model_registry import (  # noqa: E402
+from src.preprocessing.image_loader import load_and_preprocess_image
+from src.registry.model_registry import (
     ModelLoadError,
     ModelNotFoundError,
     _find_first_existing,
+    load_onnx_model,
     load_registry,
-    load_tf_model,
 )
 
 # ═══════════════════════════════════════════════════════════════════════════
@@ -66,13 +53,22 @@ class TestLoadRegistry:
                     f"{prob_key}/{model_key} marqué available=True alors que le fichier est absent"
                 )
 
-    def test_model_available_true_when_file_present(self, tmp_path: Path) -> None:
+    def test_model_available_true_when_onnx_file_present(self, tmp_path: Path) -> None:
+        """Un fichier .onnx présent → available=True."""
         models_dir = tmp_path / "models"
         models_dir.mkdir(parents=True)
-        # Créer un fichier .keras factice
-        (models_dir / "optimized_model.keras").write_bytes(b"fake")
+        (models_dir / "optimized_model.onnx").write_bytes(b"fake-onnx")
         problems = load_registry(tmp_path)["problems"]
         assert problems["chest_xray"]["models"]["optimized"]["available"] is True
+
+    def test_model_framework_is_onnxruntime(self, tmp_path: Path) -> None:
+        """Tous les modèles doivent déclarer 'onnxruntime' comme framework."""
+        problems = load_registry(tmp_path)["problems"]
+        for prob_key, problem in problems.items():
+            for model_key, model in problem["models"].items():
+                assert model["framework"] == "onnxruntime", (
+                    f"{prob_key}/{model_key} a framework={model['framework']!r} au lieu de 'onnxruntime'"
+                )
 
     def test_metrics_empty_when_file_absent(self, tmp_path: Path) -> None:
         problems = load_registry(tmp_path)["problems"]
@@ -102,16 +98,25 @@ class TestFindFirstExisting:
 
 
 # ═══════════════════════════════════════════════════════════════════════════
-# load_tf_model — erreurs propres (pas de traceback JSON Keras)
+# load_onnx_model — erreurs propres (pas de traceback illisible)
 # ═══════════════════════════════════════════════════════════════════════════
 
 
-class TestLoadTfModel:
+class TestLoadOnnxModel:
     def test_raises_model_not_found_when_file_missing(self, tmp_path: Path) -> None:
-        """Fichier absent → ModelNotFoundError, pas FileNotFoundError générique."""
-        missing = str(tmp_path / "ghost.keras")
+        """Fichier .onnx absent → ModelNotFoundError avec message lisible."""
+        missing = str(tmp_path / "ghost.onnx")
         with pytest.raises(ModelNotFoundError):
-            load_tf_model(missing)
+            load_onnx_model(missing)
+
+    def test_model_not_found_message_is_human_readable(self, tmp_path: Path) -> None:
+        """Le message d'erreur doit être lisible — pas de JSON de config Keras."""
+        missing = str(tmp_path / "ghost.onnx")
+        with pytest.raises(ModelNotFoundError) as exc_info:
+            load_onnx_model(missing)
+        msg = str(exc_info.value)
+        assert "ghost.onnx" in msg, "Le nom du fichier doit apparaître dans le message"
+        assert len(msg) < 500, "Le message ne doit pas contenir de JSON volumineux"
 
     def test_model_not_found_is_file_not_found(self) -> None:
         """ModelNotFoundError doit être une sous-classe de FileNotFoundError."""
@@ -121,23 +126,11 @@ class TestLoadTfModel:
         """ModelLoadError doit être une sous-classe de RuntimeError."""
         assert issubclass(ModelLoadError, RuntimeError)
 
-    def test_raises_model_load_error_on_corrupt_file(self, tmp_path: Path) -> None:
-        """Fichier corrompu → ModelLoadError avec message lisible."""
-        bad_file = tmp_path / "bad.keras"
-        bad_file.write_bytes(b"not a keras file")
-
-        # Démocker TF pour ce test : on utilise le vrai TF si disponible,
-        # sinon on simule une exception de chargement.
-        with patch(
-            "src.registry.model_registry.load_tf_model.__wrapped__"
-            if hasattr(load_tf_model, "__wrapped__")
-            else "builtins.open",
-        ):
-            pass  # test structurel uniquement — vérifie que les types existent
-
-    def test_load_tf_model_is_cached(self, tmp_path: Path) -> None:
-        """Le décorateur @lru_cache doit être présent."""
-        assert hasattr(load_tf_model, "cache_info"), "load_tf_model doit utiliser @lru_cache"
+    def test_load_onnx_model_is_cached(self) -> None:
+        """Le décorateur @lru_cache doit être présent sur load_onnx_model."""
+        assert hasattr(load_onnx_model, "cache_info"), (
+            "load_onnx_model doit utiliser @lru_cache pour éviter de recharger le modèle à chaque inférence"
+        )
 
 
 # ═══════════════════════════════════════════════════════════════════════════
@@ -206,6 +199,7 @@ class TestGitignore:
         assert ".dvc/tmp/" in self._content(), ".dvc/tmp/ doit être dans .gitignore"
 
     def test_keras_files_excluded(self) -> None:
+        """Les .keras restent trackés via DVC, pas git."""
         assert "*.keras" in self._content(), "*.keras doit être dans .gitignore"
 
     def test_artifacts_excluded_with_dvc_exception(self) -> None:
