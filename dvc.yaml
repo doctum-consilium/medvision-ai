@@ -12,8 +12,6 @@ stages:
       - src/training/train.py
       - src/utils/dataset.py
       - src/evaluation/metrics.py
-      - src/models/baseline_model.py
-      - src/models/optimized_model.py
       - configs/config.yaml
       - data/raw/chest_xray
     params:
@@ -41,8 +39,6 @@ stages:
       - src/training/train_brain_mri.py
       - src/utils/dataset_multiclass.py
       - src/evaluation/metrics_multiclass.py
-      - src/models/baseline_model.py
-      - src/models/optimized_model.py
       - configs/brain_tumor_mri.yaml
       - data/raw/brain_tumor_mri
     params:
@@ -81,7 +77,6 @@ stages:
     deps:
       - src/segmentation/train_segmentation.py
       - src/segmentation/data.py
-      - src/segmentation/models/unet.py
       - src/segmentation/metrics.py
       - src/segmentation/overlays.py
       - configs/brain_tumor_segmentation.yaml
@@ -121,7 +116,6 @@ stages:
     deps:
       - src/segmentation/train_segmentation.py
       - src/segmentation/data.py
-      - src/segmentation/models/unet.py
       - src/segmentation/metrics.py
       - src/segmentation/overlays.py
       - configs/chest_xray_segmentation.yaml
