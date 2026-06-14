@@ -1,10 +1,8 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Tuple
 
 import tensorflow as tf
-
 
 AUTOTUNE = tf.data.AUTOTUNE
 
@@ -15,7 +13,7 @@ def build_datasets(
     batch_size: int,
     validation_split: float = 0.2,
     seed: int = 42,
-) -> Tuple[tf.data.Dataset, tf.data.Dataset, tf.data.Dataset]:
+) -> tuple[tf.data.Dataset, tf.data.Dataset, tf.data.Dataset]:
     dataset_dir = Path(dataset_dir)
     train_dir = dataset_dir / "train"
     val_dir = dataset_dir / "val"

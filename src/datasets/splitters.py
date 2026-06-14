@@ -7,7 +7,6 @@ from sklearn.model_selection import train_test_split
 
 from src.utils.paths import ensure_dir
 
-
 REQUIRED_COLUMNS = {"patient_id", "path", "label"}
 
 

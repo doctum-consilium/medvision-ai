@@ -1,8 +1,8 @@
 from __future__ import annotations
 
-from pathlib import Path
 import re
-from typing import Iterable
+from collections.abc import Iterable
+from pathlib import Path
 
 import pandas as pd
 
@@ -132,7 +132,7 @@ def build_manifest(raw_dir: str | Path, output_csv: str | Path, known_labels: li
 
     rows = []
 
-    for key, candidates in grouped.items():
+    for _key, candidates in grouped.items():
         if len(candidates) < 2:
             continue
 

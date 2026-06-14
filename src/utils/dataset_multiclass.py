@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Tuple
 
 import tensorflow as tf
 
@@ -20,7 +19,7 @@ def build_multiclass_datasets(
     seed: int = 42,
     training_subdir: str = "Training",
     testing_subdir: str = "Testing",
-) -> Tuple[tf.data.Dataset, tf.data.Dataset, tf.data.Dataset, list[str]]:
+) -> tuple[tf.data.Dataset, tf.data.Dataset, tf.data.Dataset, list[str]]:
     dataset_dir = Path(dataset_dir)
     train_root = dataset_dir / training_subdir
     test_root = dataset_dir / testing_subdir

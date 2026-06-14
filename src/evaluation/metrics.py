@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Dict
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -18,7 +17,7 @@ from sklearn.metrics import (
 )
 
 
-def evaluate_predictions(y_true: np.ndarray, y_prob: np.ndarray) -> Dict[str, float]:
+def evaluate_predictions(y_true: np.ndarray, y_prob: np.ndarray) -> dict[str, float]:
     y_pred = (y_prob >= 0.5).astype(int)
     cm = confusion_matrix(y_true, y_pred, labels=[0, 1])
     tn, fp, fn, tp = cm.ravel()

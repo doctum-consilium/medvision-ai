@@ -93,7 +93,7 @@ def main() -> None:
                 f'CLI error: {cli_err}. API error: {api_err}.\n'
                 'If the process is being killed by the OS, check memory/disk on the host '
                 '(e.g. `free -h`, `df -h`, `dmesg -T | grep -Ei "killed process|oom" | tail`).'
-            )
+            ) from api_err
 
     _extract_all(zip_path, target_dir)
     print(f'Downloaded and extracted {spec["slug"]} to {target_dir}')
