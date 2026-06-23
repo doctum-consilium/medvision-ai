@@ -9,25 +9,34 @@ from src.utils.config import load_config
 
 
 class ModelNotFoundError(FileNotFoundError):
-    """Le fichier .keras/.pt est absent du répertoire artifacts/models/."""
+    """Le fichier .onnx est absent du répertoire artifacts/models/.
+
+    Cause la plus fréquente : les modèles n'ont pas encore été convertis en ONNX.
+    Exécuter scripts/convert_to_onnx.py sur la machine d'entraînement,
+    puis dvc push, puis rebuilder l'image.
+    """
 
 
 class ModelLoadError(RuntimeError):
-    """Le modèle existe mais n'a pas pu être chargé (corruption, incompatibilité Keras)."""
+    """Le modèle existe mais n'a pas pu être chargé (fichier corrompu, etc.)."""
+
 
 DEFAULT_ARTIFACTS_DIR = Path("artifacts")
 
+# Registre des problèmes médicaux et de leurs modèles associés.
+# Tous les modèles référencent des fichiers .onnx — format stable entre versions.
+# Les fichiers .keras/.pt sources sont conservés en DVC pour l'entraînement.
 PROBLEMS: dict[str, dict[str, Any]] = {
     "chest_xray": {
         "label": "Chest X-ray Pneumonia Classification",
         "config_path": "configs/config.yaml",
         "model_candidates": {
-            "baseline": "baseline_model.keras",
-            "optimized": "optimized_model.keras",
-            "densenet121": "densenet121_model.keras",
-            "efficientnetv2b0": "efficientnetv2b0_model.keras",
-            "convnexttiny": "convnexttiny_model.keras",
-            "resnet50v2": "resnet50v2_model.keras",
+            "baseline": "baseline_model.onnx",
+            "optimized": "optimized_model.onnx",
+            "densenet121": "densenet121_model.onnx",
+            "efficientnetv2b0": "efficientnetv2b0_model.onnx",
+            "convnexttiny": "convnexttiny_model.onnx",
+            "resnet50v2": "resnet50v2_model.onnx",
         },
         "report_candidates": {
             "baseline": "baseline_classification_report.txt",
@@ -52,15 +61,15 @@ PROBLEMS: dict[str, dict[str, Any]] = {
         "label": "Brain MRI Tumor Classification",
         "config_path": "configs/brain_tumor_mri.yaml",
         "model_candidates": {
-            "optimized": "brain_mri_optimized.keras",
-            "baseline": "brain_mri_baseline.keras",
-            "densenet121": "brain_mri_densenet121.keras",
-            "efficientnetv2b0": "brain_mri_efficientnetv2b0.keras",
-            "convnexttiny": "brain_mri_convnexttiny.keras",
-            "resnet50v2": "brain_mri_resnet50v2.keras",
-            "densenet121_torch": "brain_mri_densenet121_torch.pt",
-            "resnet50_torch": "brain_mri_resnet50_torch.pt",
-            "swin_v2_s_torch": "brain_mri_swin_v2_s_torch.pt",
+            "optimized": "brain_mri_optimized.onnx",
+            "baseline": "brain_mri_baseline.onnx",
+            "densenet121": "brain_mri_densenet121.onnx",
+            "efficientnetv2b0": "brain_mri_efficientnetv2b0.onnx",
+            "convnexttiny": "brain_mri_convnexttiny.onnx",
+            "resnet50v2": "brain_mri_resnet50v2.onnx",
+            "densenet121_torch": "brain_mri_densenet121_torch.onnx",
+            "resnet50_torch": "brain_mri_resnet50_torch.onnx",
+            "swin_v2_s_torch": "brain_mri_swin_v2_s_torch.onnx",
         },
         "report_candidates": {
             "optimized": "brain_mri_optimized_classification_report.txt",
@@ -88,7 +97,7 @@ PROBLEMS: dict[str, dict[str, Any]] = {
         "label": "Brain Tumor Segmentation + Classification",
         "config_path": "configs/brain_tumor_segmentation.yaml",
         "model_candidates": {
-            "unet_multitask": "brain_tumor_segmentation_unet.keras",
+            "unet_multitask": "brain_tumor_segmentation_unet.onnx",
         },
         "metrics_candidates": {
             "unet_multitask": ["brain_tumor_segmentation_unet_metrics.json"],
@@ -100,7 +109,7 @@ PROBLEMS: dict[str, dict[str, Any]] = {
         "label": "Chest X-ray Lung Segmentation + Abnormality Classification",
         "config_path": "configs/chest_xray_segmentation.yaml",
         "model_candidates": {
-            "unet_multitask": "chest_xray_segmentation_unet.keras",
+            "unet_multitask": "chest_xray_segmentation_unet.onnx",
         },
         "metrics_candidates": {
             "unet_multitask": ["chest_xray_segmentation_unet_metrics.json"],
@@ -131,6 +140,14 @@ def _find_first_existing(directory: Path, names: list[str] | tuple[str, ...]) ->
 
 
 def load_registry(artifacts_dir: str | Path = DEFAULT_ARTIFACTS_DIR) -> dict[str, Any]:
+    """Construit le registre complet des modèles disponibles.
+
+    Args:
+        artifacts_dir: Répertoire racine des artefacts (contient models/, reports/).
+
+    Returns:
+        Dict avec une clé "problems" → dict de problèmes → modèles disponibles.
+    """
     artifacts_dir = Path(artifacts_dir)
     models_dir = artifacts_dir / "models"
     reports_dir = artifacts_dir / "reports"
@@ -146,12 +163,16 @@ def load_registry(artifacts_dir: str | Path = DEFAULT_ARTIFACTS_DIR) -> dict[str
         }
         for model_key, model_filename in spec["model_candidates"].items():
             model_path = models_dir / model_filename
-            metrics_path = _find_first_existing(reports_dir, spec.get("metrics_candidates", {}).get(model_key, []))
-            report_path = _find_first_existing(reports_dir, [spec.get("report_candidates", {}).get(model_key, "")])
+            metrics_path = _find_first_existing(
+                reports_dir, spec.get("metrics_candidates", {}).get(model_key, [])
+            )
+            report_path = _find_first_existing(
+                reports_dir, [spec.get("report_candidates", {}).get(model_key, "")]
+            )
 
             problem_entry["models"][model_key] = {
                 "model_path": str(model_path),
-                "framework": "pytorch" if model_path.suffix == ".pt" else "tensorflow",
+                "framework": "onnxruntime",
                 "available": model_path.exists(),
                 "metrics": _load_json(metrics_path) if metrics_path else {},
                 "metrics_path": str(metrics_path) if metrics_path else None,
@@ -164,50 +185,70 @@ def load_registry(artifacts_dir: str | Path = DEFAULT_ARTIFACTS_DIR) -> dict[str
 
 
 @lru_cache(maxsize=16)
-def load_tf_model(model_path: str):
-    """Charge un modèle Keras depuis le chemin donné.
+def load_onnx_model(model_path: str) -> Any:
+    """Charge un modèle ONNX et retourne une InferenceSession prête pour l'inférence.
 
-    L'import TensorFlow est différé au premier appel (lazy) pour que l'import
-    du registry soit instantané même si TF n'est pas installé dans l'env courant.
+    L'import onnxruntime est différé au premier appel (lazy) pour que l'import
+    du registry reste instantané même si onnxruntime n'est pas installé.
 
     Args:
-        model_path: Chemin absolu vers le fichier .keras.
+        model_path: Chemin absolu vers le fichier .onnx.
 
     Returns:
-        tf.keras.Model prêt pour l'inférence (non compilé).
+        onnxruntime.InferenceSession prêt pour l'inférence CPU.
 
     Raises:
-        ModelNotFoundError: Le fichier n'existe pas.
+        ModelNotFoundError: Le fichier .onnx est absent — modèle non encore converti.
+            Exécuter scripts/convert_to_onnx.py sur la machine ML, puis dvc push.
         ModelLoadError: Le fichier existe mais la désérialisation a échoué.
+
+    Example:
+        >>> sess = load_onnx_model("artifacts/models/optimized_model.onnx")
+        >>> out = sess.run(None, {sess.get_inputs()[0].name: image_batch})
     """
-    import tensorflow as tf  # noqa: PLC0415 — import intentionnellement différé
-
-    if not Path(model_path).exists():
-        raise ModelNotFoundError(f"Modèle introuvable : {model_path}")
-
-    # Patch de compatibilité Keras < 3.3 : `quantization_config` inconnu dans Dense.
-    original_dense_from_config = tf.keras.layers.Dense.from_config
-
-    def _compat_dense_from_config(cls, config):
-        cfg = dict(config)
-        cfg.pop("quantization_config", None)
-        return original_dense_from_config.__func__(cls, cfg)
+    # On vérifie l'existence du fichier AVANT d'importer onnxruntime : un modèle
+    # absent doit lever ModelNotFoundError SANS dépendre d'onnxruntime (sinon un
+    # environnement sans la lib — ex. job CI léger — voit un ModuleNotFoundError
+    # illisible au lieu de l'erreur métier). L'import reste paresseux, juste après.
+    path = Path(model_path)
+    if not path.exists():
+        raise ModelNotFoundError(
+            f"{path.name} introuvable.\n"
+            "Le modèle n'a pas encore été converti en ONNX.\n"
+            "Exécuter : python scripts/convert_to_onnx.py (sur machine ML), puis dvc push."
+        )
 
     try:
-        return tf.keras.models.load_model(model_path, compile=False)
-    except TypeError:
-        tf.keras.layers.Dense.from_config = classmethod(_compat_dense_from_config)
-        try:
-            return tf.keras.models.load_model(model_path, compile=False)
-        except Exception as exc:
-            raise ModelLoadError(f"Impossible de charger {model_path} : {exc}") from exc
-        finally:
-            tf.keras.layers.Dense.from_config = original_dense_from_config
+        import onnxruntime as ort  # noqa: PLC0415 — lazy import intentionnel
+        opts = ort.SessionOptions()
+        opts.log_severity_level = 3  # supprime les avertissements verbeux
+        return ort.InferenceSession(
+            model_path,
+            sess_options=opts,
+            providers=["CPUExecutionProvider"],
+        )
     except Exception as exc:
-        raise ModelLoadError(f"Impossible de charger {model_path} : {exc}") from exc
+        raise ModelLoadError(f"{path.name} : {exc}") from exc
 
 
-def get_model_entry(problem: str, model_name: str, artifacts_dir: str | Path = DEFAULT_ARTIFACTS_DIR) -> dict[str, Any]:
+def get_model_entry(
+    problem: str,
+    model_name: str,
+    artifacts_dir: str | Path = DEFAULT_ARTIFACTS_DIR,
+) -> dict[str, Any]:
+    """Retourne l'entrée de registre pour un modèle donné.
+
+    Args:
+        problem: Clé du problème médical (ex. "chest_xray", "brain_mri").
+        model_name: Nom du modèle dans le registre (ex. "baseline", "optimized").
+        artifacts_dir: Répertoire racine des artefacts.
+
+    Returns:
+        Dict avec model_path, framework, available, metrics, class_names, task_type.
+
+    Raises:
+        KeyError: Le problème ou le modèle n'existe pas dans le registre.
+    """
     registry = load_registry(artifacts_dir)
     problem_entry = registry["problems"].get(problem)
     if not problem_entry:
@@ -218,7 +259,22 @@ def get_model_entry(problem: str, model_name: str, artifacts_dir: str | Path = D
     return {**model_entry, "class_names": problem_entry["class_names"], "task_type": problem_entry["task_type"]}
 
 
-def compare_models(problem: str, artifacts_dir: str | Path = DEFAULT_ARTIFACTS_DIR) -> list[dict[str, Any]]:
+def compare_models(
+    problem: str,
+    artifacts_dir: str | Path = DEFAULT_ARTIFACTS_DIR,
+) -> list[dict[str, Any]]:
+    """Retourne un tableau comparatif des métriques pour tous les modèles d'un problème.
+
+    Args:
+        problem: Clé du problème médical.
+        artifacts_dir: Répertoire racine des artefacts.
+
+    Returns:
+        Liste de dicts (un par modèle) avec model_name, available, et toutes les métriques.
+
+    Raises:
+        KeyError: Le problème n'existe pas dans le registre.
+    """
     registry = load_registry(artifacts_dir)
     problem_entry = registry["problems"].get(problem)
     if not problem_entry:

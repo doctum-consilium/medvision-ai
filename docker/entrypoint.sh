@@ -18,9 +18,10 @@ if [ -n "${AWS_ACCESS_KEY_ID:-}" ] && [ -n "${AWS_SECRET_ACCESS_KEY:-}" ]; then
     echo "[entrypoint] Credentials AWS détectés — tentative de dvc pull..."
     # DVC requiert un dépôt git. On initialise un repo vide si absent (conteneur sans .git).
     git rev-parse --git-dir > /dev/null 2>&1 || git init -q
-    # On ne tire que les stages d'entraînement présents en S3.
-    # Les stages de téléchargement (data/raw/) ne sont pas en S3 → on les ignore.
-    if dvc pull train_chest_xray train_brain_mri train_brain_tumor_segmentation --no-run-cache > /tmp/dvc-pull.log 2>&1; then
+    # On tire le stage convert_to_onnx qui produit les fichiers .onnx nécessaires
+    # à l'inférence. Les stages d'entraînement (.keras) ne sont pas tirés en prod —
+    # l'entraînement se fait sur machine ML, pas dans le pod.
+    if dvc pull convert_to_onnx --no-run-cache > /tmp/dvc-pull.log 2>&1; then
         cat /tmp/dvc-pull.log
         echo "[entrypoint] Artefacts récupérés depuis S3."
     else

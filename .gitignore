@@ -106,3 +106,4 @@ pyrightconfig.json
 # ── Windows ───────────────────────────────────────────────────────────────
 Thumbs.db
 desktop.ini
+coverage-smoke.xml
