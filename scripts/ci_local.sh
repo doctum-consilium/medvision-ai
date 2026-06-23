@@ -106,4 +106,21 @@ else
   fi
 fi
 
+# ── 4) Guardrails — MIROIR du job CI « validate » (guardrails.yml) ─────────
+# La CI exige .guardrails/config.env présent ET bin/validate_guardrails.sh
+# exécutable (test -x). Un bit +x perdu (fichier recréé sous Windows/CRLF) ou
+# un config.env oublié faisait échouer la CI sans qu'on le voie en local.
+hook_title "Guardrails (assets + validateur)"
+if [ ! -d .guardrails ]; then
+  hook_skip "pas de .guardrails dans ce repo"
+elif [ ! -f .guardrails/config.env ]; then
+  hook_fail "guardrails : .guardrails/config.env manquant"
+elif [ ! -x .guardrails/bin/validate_guardrails.sh ]; then
+  hook_fail "guardrails : bin/validate_guardrails.sh non exécutable (git update-index --chmod=+x ...)"
+elif ./.guardrails/bin/validate_guardrails.sh >/dev/null 2>&1; then
+  hook_ok "guardrails validés"
+else
+  hook_fail "guardrails validator a échoué"
+fi
+
 hook_summary
