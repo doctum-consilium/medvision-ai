@@ -206,8 +206,10 @@ def load_onnx_model(model_path: str) -> Any:
         >>> sess = load_onnx_model("artifacts/models/optimized_model.onnx")
         >>> out = sess.run(None, {sess.get_inputs()[0].name: image_batch})
     """
-    import onnxruntime as ort  # noqa: PLC0415 — lazy import intentionnel
-
+    # On vérifie l'existence du fichier AVANT d'importer onnxruntime : un modèle
+    # absent doit lever ModelNotFoundError SANS dépendre d'onnxruntime (sinon un
+    # environnement sans la lib — ex. job CI léger — voit un ModuleNotFoundError
+    # illisible au lieu de l'erreur métier). L'import reste paresseux, juste après.
     path = Path(model_path)
     if not path.exists():
         raise ModelNotFoundError(
@@ -217,6 +219,7 @@ def load_onnx_model(model_path: str) -> Any:
         )
 
     try:
+        import onnxruntime as ort  # noqa: PLC0415 — lazy import intentionnel
         opts = ort.SessionOptions()
         opts.log_severity_level = 3  # supprime les avertissements verbeux
         return ort.InferenceSession(
