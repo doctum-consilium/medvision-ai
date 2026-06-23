@@ -37,7 +37,12 @@ hook_python() {
     python3 python; do
     [ "$cand" = "NONE/bin/python" ] && continue
     [ -x "$cand" ] || continue
-    if "$cand" -c "import pytest" >/dev/null 2>&1; then echo "$cand"; return; fi
+    # Exige pytest ET Python ≥ 3.10 : le projet utilise la syntaxe d'union `X | None`
+    # (PEP 604), que 3.9 ne sait pas évaluer — la CI tourne en 3.10. Sans ce garde,
+    # le hook pouvait choisir un env 3.9 (ex. GPUMachineLearning) et échouer à tort.
+    if "$cand" -c "import pytest, sys; sys.exit(0 if sys.version_info >= (3, 10) else 1)" >/dev/null 2>&1; then
+      echo "$cand"; return
+    fi
   done
   echo ""
 }

@@ -44,15 +44,38 @@ else
   fi
 fi
 
-# ── 2) Tests smoke (sans TF) ──────────────────────────────────────────────
+# ── 2) Tests smoke (sans TF) + couverture XML ─────────────────────────────
 hook_title "Pytest smoke (sans TF)"
 if [ -z "$PY" ]; then
   hook_fail "aucun python avec pytest — pip install pytest dans ton venv"
 else
-  if "$PY" -m pytest tests/smoke/ -q --tb=short; then
+  if "$PY" -m pytest tests/smoke/ -q --tb=short \
+      --cov=src --cov-report=xml:coverage-smoke.xml; then
     hook_ok "smoke tests verts"
   else
     hook_fail "smoke tests échoués"
+  fi
+fi
+
+# ── 2bis) Couverture du diff ≥ 80 % (MIROIR du gate CI) ────────────────────
+# C'est le gate qui échouait sans être joué en local. BLOQUANT : on récupère
+# origin/main au besoin ; l'absence d'outil/branche fait échouer (pas de skip).
+hook_title "Couverture du diff (diff-cover ≥ 80 % vs origin/main)"
+if [ -z "$PY" ]; then
+  hook_fail "python absent (voir ci-dessus)"
+elif ! "$PY" -c "import diff_cover" >/dev/null 2>&1; then
+  hook_fail "diff-cover absent — pip install diff-cover (la CI l'exige)"
+elif [ ! -f coverage-smoke.xml ]; then
+  hook_fail "coverage-smoke.xml absent (pytest a échoué avant)"
+else
+  git rev-parse --verify --quiet origin/main >/dev/null 2>&1 || git fetch -q origin main 2>/dev/null || true
+  if ! git rev-parse --verify --quiet origin/main >/dev/null 2>&1; then
+    hook_fail "origin/main introuvable même après fetch (git fetch origin main)"
+  elif "$PY" -m diff_cover.diff_cover_tool coverage-smoke.xml \
+      --compare-branch=origin/main --fail-under=80; then
+    hook_ok "lignes du diff couvertes ≥ 80 %"
+  else
+    hook_fail "des lignes ajoutées par la PR ne sont pas couvertes (< 80 %)"
   fi
 fi
 
