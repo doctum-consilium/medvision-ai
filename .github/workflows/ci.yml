@@ -97,11 +97,19 @@ jobs:
         # par le job test-tf (tests/test_model_builders.py). On les sort donc de CE gate-ci
         # pour ne pas exiger l'impossible sans rabaisser le seuil global. Le motif '*/models/*'
         # est requis car diff-cover préfixe les chemins ('src/models/*' ne matche pas).
+        #
+        # --ignore-staged --ignore-unstaged : ne juger QUE le code commité (origin/main...HEAD).
+        # Sans ces flags, diff-cover inclut « staged and unstaged changes » du working tree du
+        # runner. Or .gitattributes impose eol=lf alors que des fichiers historiques sont encore
+        # en CRLF : au checkout, git les voit comme modifiés (EOL) et diff-cover les ramassait
+        # comme lignes ajoutées non couvertes (src/segmentation/data.py, streamlit_app.py…),
+        # faisant échouer le gate sur du code que la PR ne touche pas.
         run: |
           diff-cover coverage-smoke.xml \
             --compare-branch=origin/main \
             --fail-under=80 \
-            --exclude '*/models/*'
+            --exclude '*/models/*' \
+            --ignore-staged --ignore-unstaged
 
       - name: Archiver le rapport de couverture
         if: always()
@@ -147,10 +155,13 @@ jobs:
             -q
 
       - name: Couverture du diff ≥ 80 %
+        # --ignore-staged --ignore-unstaged : ne juger QUE le code commité (origin/main...HEAD),
+        # pour ne pas ramasser les différences EOL du working tree du runner (cf. job test-fast).
         run: |
           diff-cover coverage-tf.xml \
             --compare-branch=origin/main \
-            --fail-under=80
+            --fail-under=80 \
+            --ignore-staged --ignore-unstaged
 
       - name: Archiver le rapport de couverture
         if: always()
