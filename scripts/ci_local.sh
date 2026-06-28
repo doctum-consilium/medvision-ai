@@ -76,9 +76,12 @@ else
   # --cov=src. Leur couverture est assurée par le job test-tf (tests/test_model_builders.py).
   # On les sort de CE gate sans rabaisser le seuil. Le motif '*/models/*' est requis car
   # diff-cover préfixe les chemins. Doit rester aligné avec .github/workflows/ci.yml.
+  # --ignore-staged --ignore-unstaged : ne juger que le code commité (origin/main...HEAD),
+  # pour ne pas ramasser les différences EOL du working tree (.gitattributes eol=lf vs CRLF).
   elif "$PY" -m diff_cover.diff_cover_tool coverage-smoke.xml \
       --compare-branch=origin/main --fail-under=80 \
-      --exclude '*/models/*'; then
+      --exclude '*/models/*' \
+      --ignore-staged --ignore-unstaged; then
     hook_ok "lignes du diff couvertes ≥ 80 %"
   else
     hook_fail "des lignes ajoutées par la PR ne sont pas couvertes (< 80 %)"
