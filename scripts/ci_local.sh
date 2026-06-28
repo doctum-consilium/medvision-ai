@@ -71,8 +71,14 @@ else
   git rev-parse --verify --quiet origin/main >/dev/null 2>&1 || git fetch -q origin main 2>/dev/null || true
   if ! git rev-parse --verify --quiet origin/main >/dev/null 2>&1; then
     hook_fail "origin/main introuvable même après fetch (git fetch origin main)"
+  # --exclude '*/models/*' : src/models et src/segmentation/models importent TensorFlow
+  # au niveau module → inatteignables par le smoke (sans TF), donc comptés à 0 % par
+  # --cov=src. Leur couverture est assurée par le job test-tf (tests/test_model_builders.py).
+  # On les sort de CE gate sans rabaisser le seuil. Le motif '*/models/*' est requis car
+  # diff-cover préfixe les chemins. Doit rester aligné avec .github/workflows/ci.yml.
   elif "$PY" -m diff_cover.diff_cover_tool coverage-smoke.xml \
-      --compare-branch=origin/main --fail-under=80; then
+      --compare-branch=origin/main --fail-under=80 \
+      --exclude '*/models/*'; then
     hook_ok "lignes du diff couvertes ≥ 80 %"
   else
     hook_fail "des lignes ajoutées par la PR ne sont pas couvertes (< 80 %)"

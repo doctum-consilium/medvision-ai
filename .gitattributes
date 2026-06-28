@@ -1,0 +1,11 @@
+# Force LF line endings for shell scripts everywhere (avoids CRLF on Windows clones)
+*.sh text eol=lf
+*.py text eol=lf
+*.yaml text eol=lf
+*.yml text eol=lf
+*.md text eol=lf
+*.txt text eol=lf
+*.csv text eol=lf
+*.json text eol=lf
+*.toml text eol=lf
+*.cfg text eol=lf

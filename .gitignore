@@ -107,3 +107,4 @@ pyrightconfig.json
 Thumbs.db
 desktop.ini
 coverage-smoke.xml
+coverage-tf.xml
