@@ -1,66 +1,38 @@
 stages:
+  # ──────────────────────────────────────────────────────────────────────────
+  # Données
+  # ──────────────────────────────────────────────────────────────────────────
   download_chest_xray:
-    cmd: python -m src.data.download_dataset
+    cmd: bash scripts/_dvc_tf.sh python -m src.data.download_dataset
     deps:
       - src/data/download_dataset.py
     outs:
       - data/raw/chest_xray
 
-  train_chest_xray:
-    cmd: python -m src.training.train --config configs/config.yaml --model optimized --epochs ${chest_xray.epochs}
-    deps:
-      - src/training/train.py
-      - src/utils/dataset.py
-      - src/evaluation/metrics.py
-      - configs/config.yaml
-      - data/raw/chest_xray
-    params:
-      - chest_xray
-    outs:
-      - artifacts/models/optimized_model.keras
-      - artifacts/reports/optimized_classification_report.txt
-      - artifacts/reports/optimized_confusion_matrix.png
-      - artifacts/reports/optimized_history.json
-    metrics:
-      - artifacts/reports/optimized_metrics.json:
-          cache: false
-
   download_brain_mri:
-    cmd: python -m src.data.download_brain_mri_dataset --config configs/brain_tumor_mri.yaml
+    cmd: bash scripts/_dvc_tf.sh python -m src.data.download_brain_mri_dataset --config configs/brain_tumor_mri.yaml
     deps:
       - src/data/download_brain_mri_dataset.py
       - configs/brain_tumor_mri.yaml
     outs:
       - data/raw/brain_tumor_mri
 
-  train_brain_mri:
-    cmd: python -m src.training.train_brain_mri --config configs/brain_tumor_mri.yaml --model optimized --epochs ${brain_mri.epochs}
-    deps:
-      - src/training/train_brain_mri.py
-      - src/utils/dataset_multiclass.py
-      - src/evaluation/metrics_multiclass.py
-      - configs/brain_tumor_mri.yaml
-      - data/raw/brain_tumor_mri
-    params:
-      - brain_mri
-    outs:
-      - artifacts/models/brain_mri_optimized.keras
-      - artifacts/reports/brain_mri_optimized_classification_report.txt
-      - artifacts/reports/brain_mri_optimized_confusion_matrix.png
-      - artifacts/reports/brain_mri_optimized_history.json
-    metrics:
-      - artifacts/reports/brain_mri_metrics.json:
-          cache: false
-
   download_brain_tumor_segmentation:
-    cmd: python -m src.data.download_segmentation_dataset --problem brain_tumor_seg
+    cmd: bash scripts/_dvc_tf.sh python -m src.data.download_segmentation_dataset --problem brain_tumor_seg
     deps:
       - src/data/download_segmentation_dataset.py
     outs:
       - data/raw/brain_tumor_segmentation
 
+  download_chest_xray_segmentation:
+    cmd: bash scripts/_dvc_tf.sh python -m src.data.download_segmentation_dataset --problem chest_xray_seg
+    deps:
+      - src/data/download_segmentation_dataset.py
+    outs:
+      - data/raw/chest_xray_segmentation
+
   prepare_brain_tumor_segmentation:
-    cmd: python -m src.data.prepare_segmentation_dataset --config configs/brain_tumor_segmentation.yaml
+    cmd: bash scripts/_dvc_tf.sh python -m src.data.prepare_segmentation_dataset --config configs/brain_tumor_segmentation.yaml
     deps:
       - src/data/prepare_segmentation_dataset.py
       - src/segmentation/datasets/manifest.py
@@ -72,8 +44,107 @@ stages:
       - artifacts/reports/brain_tumor_segmentation_dataset_summary.json:
           cache: false
 
+  prepare_chest_xray_segmentation:
+    cmd: bash scripts/_dvc_tf.sh python -m src.data.prepare_segmentation_dataset --config configs/chest_xray_segmentation.yaml
+    deps:
+      - src/data/prepare_segmentation_dataset.py
+      - src/segmentation/datasets/manifest.py
+      - configs/chest_xray_segmentation.yaml
+      - data/raw/chest_xray_segmentation
+    outs:
+      - data/processed/chest_xray_segmentation/manifest.csv
+    metrics:
+      - artifacts/reports/chest_xray_segmentation_dataset_summary.json:
+          cache: false
+
+  # ──────────────────────────────────────────────────────────────────────────
+  # Classification Chest X-ray — TOUS les backbones (TensorFlow)
+  # ──────────────────────────────────────────────────────────────────────────
+  train_chest_xray:
+    foreach:
+      - baseline
+      - optimized
+      - densenet121
+      - efficientnetv2b0
+      - convnexttiny
+      - resnet50v2
+    do:
+      cmd: bash scripts/_dvc_tf.sh python -m src.training.train --config configs/config.yaml --model ${item} --epochs ${chest_xray.epochs}
+      deps:
+        - src/training/train.py
+        - src/utils/dataset.py
+        - src/evaluation/metrics.py
+        - configs/config.yaml
+        - data/raw/chest_xray
+      params:
+        - chest_xray
+      outs:
+        - artifacts/models/${item}_model.keras
+        - artifacts/reports/${item}_classification_report.txt
+        - artifacts/reports/${item}_confusion_matrix.png
+        - artifacts/reports/${item}_history.json
+      metrics:
+        - artifacts/reports/${item}_metrics.json:
+            cache: false
+
+  # ──────────────────────────────────────────────────────────────────────────
+  # Classification Brain MRI — TOUS les backbones Keras (TensorFlow)
+  # ──────────────────────────────────────────────────────────────────────────
+  train_brain_mri:
+    foreach:
+      - baseline
+      - optimized
+      - densenet121
+      - efficientnetv2b0
+      - convnexttiny
+      - resnet50v2
+    do:
+      cmd: bash scripts/_dvc_tf.sh python -m src.training.train_brain_mri --config configs/brain_tumor_mri.yaml --model ${item} --epochs ${brain_mri.epochs}
+      deps:
+        - src/training/train_brain_mri.py
+        - src/utils/dataset_multiclass.py
+        - src/evaluation/metrics_multiclass.py
+        - configs/brain_tumor_mri.yaml
+        - data/raw/brain_tumor_mri
+      params:
+        - brain_mri
+      outs:
+        - artifacts/models/brain_mri_${item}.keras
+        - artifacts/reports/brain_mri_${item}_classification_report.txt
+        - artifacts/reports/brain_mri_${item}_confusion_matrix.png
+        - artifacts/reports/brain_mri_${item}_history.json
+      metrics:
+        - artifacts/reports/brain_mri_${item}_metrics.json:
+            cache: false
+
+  # ──────────────────────────────────────────────────────────────────────────
+  # Classification Brain MRI — modèles PyTorch (env .venv-torch)
+  # ──────────────────────────────────────────────────────────────────────────
+  train_brain_mri_torch:
+    foreach:
+      - densenet121_torch
+      - resnet50_torch
+      - swin_v2_s_torch
+    do:
+      cmd: bash scripts/_dvc_torch.sh -m src.training.train_brain_mri_torch --config configs/brain_tumor_mri.yaml --model ${item} --epochs ${brain_mri.epochs}
+      deps:
+        - src/training/train_brain_mri_torch.py
+        - configs/brain_tumor_mri.yaml
+        - data/raw/brain_tumor_mri
+      params:
+        - brain_mri
+      outs:
+        - artifacts/models/brain_mri_${item}.pt
+        - artifacts/reports/brain_mri_${item}_history.json
+      metrics:
+        - artifacts/reports/brain_mri_${item}_metrics.json:
+            cache: false
+
+  # ──────────────────────────────────────────────────────────────────────────
+  # Segmentation U-Net (TensorFlow)
+  # ──────────────────────────────────────────────────────────────────────────
   train_brain_tumor_segmentation:
-    cmd: python -m src.segmentation.train_segmentation --config configs/brain_tumor_segmentation.yaml --epochs ${brain_tumor_segmentation.epochs}
+    cmd: bash scripts/_dvc_tf.sh python -m src.segmentation.train_segmentation --config configs/brain_tumor_segmentation.yaml --epochs ${brain_tumor_segmentation.epochs}
     deps:
       - src/segmentation/train_segmentation.py
       - src/segmentation/data.py
@@ -91,28 +162,8 @@ stages:
       - artifacts/reports/brain_tumor_segmentation_unet_metrics.json:
           cache: false
 
-  download_chest_xray_segmentation:
-    cmd: python -m src.data.download_segmentation_dataset --problem chest_xray_seg
-    deps:
-      - src/data/download_segmentation_dataset.py
-    outs:
-      - data/raw/chest_xray_segmentation
-
-  prepare_chest_xray_segmentation:
-    cmd: python -m src.data.prepare_segmentation_dataset --config configs/chest_xray_segmentation.yaml
-    deps:
-      - src/data/prepare_segmentation_dataset.py
-      - src/segmentation/datasets/manifest.py
-      - configs/chest_xray_segmentation.yaml
-      - data/raw/chest_xray_segmentation
-    outs:
-      - data/processed/chest_xray_segmentation/manifest.csv
-    metrics:
-      - artifacts/reports/chest_xray_segmentation_dataset_summary.json:
-          cache: false
-
   train_chest_xray_segmentation:
-    cmd: python -m src.segmentation.train_segmentation --config configs/chest_xray_segmentation.yaml --epochs ${chest_xray_segmentation.epochs}
+    cmd: bash scripts/_dvc_tf.sh python -m src.segmentation.train_segmentation --config configs/chest_xray_segmentation.yaml --epochs ${chest_xray_segmentation.epochs}
     deps:
       - src/segmentation/train_segmentation.py
       - src/segmentation/data.py
@@ -130,16 +181,54 @@ stages:
       - artifacts/reports/chest_xray_segmentation_unet_metrics.json:
           cache: false
 
+  # ──────────────────────────────────────────────────────────────────────────
+  # Conversion ONNX — TOUS les modèles (keras dans .venv, .pt dans .venv-torch).
+  # C'est CETTE stage que la prod pull (docker/entrypoint.sh : dvc pull convert_to_onnx).
+  # ──────────────────────────────────────────────────────────────────────────
   convert_to_onnx:
-    cmd: python scripts/convert_to_onnx.py
+    cmd: bash scripts/_dvc_convert.sh
     deps:
       - scripts/convert_to_onnx.py
-      - artifacts/models/optimized_model.keras
-      - artifacts/models/brain_mri_optimized.keras
-      - artifacts/models/brain_tumor_segmentation_unet.keras
+      # Chest X-ray classification (6 Keras)
       - artifacts/models/baseline_model.keras
+      - artifacts/models/optimized_model.keras
+      - artifacts/models/densenet121_model.keras
+      - artifacts/models/efficientnetv2b0_model.keras
+      - artifacts/models/convnexttiny_model.keras
+      - artifacts/models/resnet50v2_model.keras
+      # Brain MRI classification (6 Keras)
+      - artifacts/models/brain_mri_baseline.keras
+      - artifacts/models/brain_mri_optimized.keras
+      - artifacts/models/brain_mri_densenet121.keras
+      - artifacts/models/brain_mri_efficientnetv2b0.keras
+      - artifacts/models/brain_mri_convnexttiny.keras
+      - artifacts/models/brain_mri_resnet50v2.keras
+      # Brain MRI classification (3 PyTorch)
+      - artifacts/models/brain_mri_densenet121_torch.pt
+      - artifacts/models/brain_mri_resnet50_torch.pt
+      - artifacts/models/brain_mri_swin_v2_s_torch.pt
+      # Segmentation (2 Keras)
+      - artifacts/models/brain_tumor_segmentation_unet.keras
+      - artifacts/models/chest_xray_segmentation_unet.keras
     outs:
-      - artifacts/models/optimized_model.onnx
-      - artifacts/models/brain_mri_optimized.onnx
-      - artifacts/models/brain_tumor_segmentation_unet.onnx
+      # Chest X-ray classification (6)
       - artifacts/models/baseline_model.onnx
+      - artifacts/models/optimized_model.onnx
+      - artifacts/models/densenet121_model.onnx
+      - artifacts/models/efficientnetv2b0_model.onnx
+      - artifacts/models/convnexttiny_model.onnx
+      - artifacts/models/resnet50v2_model.onnx
+      # Brain MRI classification (6)
+      - artifacts/models/brain_mri_baseline.onnx
+      - artifacts/models/brain_mri_optimized.onnx
+      - artifacts/models/brain_mri_densenet121.onnx
+      - artifacts/models/brain_mri_efficientnetv2b0.onnx
+      - artifacts/models/brain_mri_convnexttiny.onnx
+      - artifacts/models/brain_mri_resnet50v2.onnx
+      # Brain MRI classification (3 PyTorch → ONNX)
+      - artifacts/models/brain_mri_densenet121_torch.onnx
+      - artifacts/models/brain_mri_resnet50_torch.onnx
+      - artifacts/models/brain_mri_swin_v2_s_torch.onnx
+      # Segmentation (2)
+      - artifacts/models/brain_tumor_segmentation_unet.onnx
+      - artifacts/models/chest_xray_segmentation_unet.onnx
