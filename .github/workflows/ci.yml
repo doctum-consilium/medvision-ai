@@ -89,10 +89,19 @@ jobs:
         # Seuil 80 % (pas 100 %) : la logique métier doit être testée,
         # mais les couches d'orchestration CLI ne le sont pas toujours.
         # Ne PAS baisser ce seuil — remonter les tests à la place.
+        #
+        # --exclude '*/models/*' : les définitions d'architectures (src/models et
+        # src/segmentation/models — les deux seuls dossiers « models » du dépôt) importent
+        # TensorFlow au niveau module ; elles ne peuvent PAS tourner dans cette suite smoke
+        # volontairement sans TF, donc --cov=src les compte à 0 %. Leur couverture est assurée
+        # par le job test-tf (tests/test_model_builders.py). On les sort donc de CE gate-ci
+        # pour ne pas exiger l'impossible sans rabaisser le seuil global. Le motif '*/models/*'
+        # est requis car diff-cover préfixe les chemins ('src/models/*' ne matche pas).
         run: |
           diff-cover coverage-smoke.xml \
             --compare-branch=origin/main \
-            --fail-under=80
+            --fail-under=80 \
+            --exclude '*/models/*'
 
       - name: Archiver le rapport de couverture
         if: always()
