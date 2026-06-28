@@ -24,7 +24,7 @@ def _read_mask(path: str, image_size: int) -> np.ndarray:
     return arr[..., None]
 
 
-def _make_dataset(df: pd.DataFrame, image_size: int, batch_size: int, class_to_idx: dict[str, int], task_type: str):
+def _make_dataset(df: pd.DataFrame, image_size: int, batch_size: int, class_to_idx: dict[str, int], task_type: str, repeat: bool = True):
     image_paths = df['image_path'].tolist()
     mask_paths = df['mask_path'].tolist()
     labels = [class_to_idx.get(lbl, 0) for lbl in df['label'].tolist()]
@@ -52,7 +52,11 @@ def _make_dataset(df: pd.DataFrame, image_size: int, batch_size: int, class_to_i
             tf.TensorSpec(shape=(image_size, image_size, 1), dtype=tf.float32),
         )
     ds = tf.data.Dataset.from_generator(gen, output_signature=output_signature)
-    return ds.repeat().batch(batch_size).prefetch(AUTOTUNE)
+    # Seul le train est répété (couplé à steps_per_epoch). Répéter val/test les rend
+    # infinis → validation et boucle d'éval post-fit ne se terminent jamais.
+    if repeat:
+        ds = ds.repeat()
+    return ds.batch(batch_size).prefetch(AUTOTUNE)
 
 
 def build_segmentation_datasets(manifest_path: str | Path, image_size: int, batch_size: int, validation_split: float = 0.2, seed: int = 42, task_type: str = 'multitask'):
@@ -85,9 +89,9 @@ def build_segmentation_datasets(manifest_path: str | Path, image_size: int, batc
     train_size = len(train_df)
 
     return (
-        _make_dataset(train_df, image_size, batch_size, class_to_idx, task_type),
-        _make_dataset(val_df, image_size, batch_size, class_to_idx, task_type),
-        _make_dataset(test_df, image_size, batch_size, class_to_idx, task_type),
+        _make_dataset(train_df, image_size, batch_size, class_to_idx, task_type, repeat=True),
+        _make_dataset(val_df, image_size, batch_size, class_to_idx, task_type, repeat=False),
+        _make_dataset(test_df, image_size, batch_size, class_to_idx, task_type, repeat=False),
         labels,
         train_size,
     )
