@@ -170,8 +170,8 @@ kubectl cp data/raw/ medvision/<pod-api>:/app/data/raw/
 # Si le pod tourne mais n'a pas les modèles :
 kubectl exec -n medvision deploy/medvision-api -- dvc pull artifacts/
 # Si S3 est vide (jamais pushé) → entraîner localement :
-conda activate GPUMachineLearning
-python src/training/train_classifier.py
+source .venv/bin/activate        # ou : conda activate <votre-env>  (deps : requirements-train.txt)
+dvc repro                        # pipeline complet reproductible
 bash scripts/migrate-models-to-s3.sh
 ```
 

@@ -83,11 +83,13 @@ Si ça retourne une erreur, demande à Yann les credentials ou renouvelle la ses
 ## Étape 1 — Activer l'environnement Python
 
 ```bash
-conda activate GPUMachineLearning
-cd /home/yann/Documents/GithubPerso/medvision-ai
+cd <chemin-vers-votre-clone>/medvision-ai     # ex. ~/medvision-ai
+# Activez votre environnement Python 3.10–3.12 :
+source .venv/bin/activate                       # venv
+# ou : conda activate <votre-env>               # conda
 ```
 
-**Pourquoi GPUMachineLearning ?** C'est l'environnement conda qui a déjà TensorFlow, PyTorch et toutes les dépendances installées.
+**Cet environnement doit contenir les deps d'entraînement** (`pip install -r requirements-train.txt` : TensorFlow, PyTorch, etc.). Sinon `import tensorflow` échoue.
 
 **Vérification :**
 ```bash
@@ -345,8 +347,9 @@ curl https://api.medvision.doctumconsilium.com/health
 
 ```bash
 # ── Setup (une seule fois) ────────────────────────────────────────────────────
-conda activate GPUMachineLearning
-cd /home/yann/Documents/GithubPerso/medvision-ai
+cd <chemin-vers-votre-clone>/medvision-ai      # ex. ~/medvision-ai
+source .venv/bin/activate                       # ou : conda activate <votre-env>
+pip install -r requirements-train.txt           # deps entraînement (TF, torch, kaggle…)
 
 # ── Données ──────────────────────────────────────────────────────────────────
 bash scripts/download_dataset.sh           # Télécharge tout depuis Kaggle
@@ -383,7 +386,7 @@ bash scripts/redeploy-k3s.sh $TAG
 | `401 Unauthorized` (Kaggle) | Token expiré | Regénérer `kaggle.json` sur kaggle.com |
 | `403 Forbidden` (Kaggle) | Règles dataset non acceptées | Aller sur la page Kaggle du dataset et cliquer "Accept" |
 | `OOM` pendant l'entraînement | Pas assez de RAM/VRAM | Réduire `batch_size` dans le config YAML |
-| `ModuleNotFoundError` | Mauvais environnement conda | `conda activate GPUMachineLearning` |
+| `ModuleNotFoundError` (ex. `tensorflow`) | Env. non activé ou deps train absentes | Activer l'env. puis `pip install -r requirements-train.txt` |
 | `dvc push` échoue | Session AWS expirée | `aws sts get-caller-identity` pour vérifier |
 | `ImagePullBackOff` en K3s | Token ECR expiré (12h) | Relancer `bash scripts/redeploy-k3s.sh $TAG` (recrée le token) |
 | Pod démarre mais sans modèles | `dvc pull` a échoué | Voir `/tmp/dvc-pull.log` dans le pod : `kubectl exec -n medvision deploy/medvision-streamlit -- cat /tmp/dvc-pull.log` |

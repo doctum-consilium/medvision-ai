@@ -60,7 +60,7 @@ This file defines Claude Code execution rules for `medvision-ai`.
 > - **PVC `medvision-raw-data`** : monté sur `/app/data/raw`, persistant sur `worker-ovh-094`. Copier les données via `kubectl cp`, elles survivent aux restarts.
 >
 > **Prochaines étapes :**
-> 1. Entraîner de vrais modèles : `conda activate GPUMachineLearning && dvc repro`
+> 1. Entraîner de vrais modèles : activer l'env. Python (deps `requirements-train.txt`) puis `dvc repro`
 > 2. `dvc push` → rebuild ECR → redeploy (les pods feront `dvc pull` automatiquement)
 > 3. Voir `ONBOARDING_perso_inspiron_ubuntu.md` pour les commandes propres à la machine locale.
 
