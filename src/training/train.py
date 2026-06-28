@@ -123,9 +123,12 @@ def main() -> None:
 
     y_true, y_prob = [], []
     for images, labels in test_ds:
-        preds = model.predict(images, verbose=0).squeeze()
+        raw = np.asarray(model.predict(images, verbose=0))
+        # Sorties à 2 classes softmax → proba de la classe positive (indice 1, PNEUMONIA).
+        # Sorties sigmoïdes 1D → squeeze. Garantit un y_prob 1D pour les métriques binaires.
+        preds = raw[:, 1] if raw.ndim == 2 and raw.shape[-1] == 2 else raw.squeeze()
         y_prob.extend(np.atleast_1d(preds).tolist())
-        y_true.extend(labels.numpy().astype(int).tolist())
+        y_true.extend(np.atleast_1d(labels.numpy().astype(int).squeeze()).tolist())
 
     y_true_arr = np.array(y_true)
     y_prob_arr = np.array(y_prob)

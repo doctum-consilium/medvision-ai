@@ -60,10 +60,13 @@ def train_with_progressive_finetuning(
             history.setdefault(k, []).extend(v)
 
     set_backbone_trainable(base_model, cfg.unfreeze_layers)
+    # metrics=["accuracy"] (et non model.metrics) : réutiliser les objets Metric déjà
+    # construits rend le conteneur de métriques non-sérialisable → model.save() plante
+    # (Keras 3 : compile_utils get_config NotImplementedError).
     model.compile(
         optimizer=tf.keras.optimizers.Adam(learning_rate=cfg.finetune_lr),
         loss=model.loss,
-        metrics=model.metrics,
+        metrics=["accuracy"],
     )
 
     if cfg.finetune_epochs > 0:
