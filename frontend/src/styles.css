@@ -1,0 +1,157 @@
+/*
+ * Design system MedVision — tokens et primitives partagées.
+ *
+ * POURQUOI un design system maison plutôt qu'un framework CSS : le rendu
+ * médical demande un contrôle précis (contrastes, images en niveaux de
+ * gris), le VPS est petit (aucune dépendance à télécharger) et l'identité
+ * visuelle se change ici, en un seul endroit.
+ *
+ * Thème clair/sombre piloté par l'attribut `data-theme` sur <html>
+ * (ThemeService : préférence système au premier chargement, puis choix
+ * de l'utilisateur mémorisé).
+ */
+
+:root {
+  /* Vert médical profond sur ivoire, accent corail pour les alertes. */
+  --bg: #f6f8f5;
+  --surface: #ffffff;
+  --surface-2: #f2f6f1;
+  --line: #dbe3d9;
+  --ink: #16211b;
+  --ink-muted: #5b6a60;
+  --accent: #0f7a66;
+  --accent-strong: #0a5c4d;
+  --accent-soft: #e2f1ec;
+  --accent-2: #c65d2f;
+  --danger: #b3372f;
+  --danger-soft: #f9e9e7;
+  --warn: #a06a00;
+  --warn-soft: #fdf3df;
+  --shadow: 0 10px 30px rgba(22, 45, 38, 0.08);
+  --radius: 14px;
+  --radius-sm: 9px;
+  --font: "Inter", "Segoe UI", system-ui, -apple-system, sans-serif;
+}
+
+:root[data-theme="dark"] {
+  --bg: #0e1512;
+  --surface: #17221d;
+  --surface-2: #1c2822;
+  --line: #2a3a32;
+  --ink: #e8efe9;
+  --ink-muted: #93a59a;
+  --accent: #35b598;
+  --accent-strong: #56cbb0;
+  --accent-soft: #16302a;
+  --accent-2: #e08a5e;
+  --danger: #e07a70;
+  --danger-soft: #35201d;
+  --warn: #e0b25e;
+  --warn-soft: #33290f;
+  --shadow: 0 10px 30px rgba(0, 0, 0, 0.35);
+}
+
+* { box-sizing: border-box; }
+
+html, body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--font);
+  font-size: 15.5px;
+  line-height: 1.55;
+  -webkit-font-smoothing: antialiased;
+}
+
+h1, h2, h3, h4 { line-height: 1.2; margin: 0 0 0.5rem; }
+h1 { font-size: 1.65rem; letter-spacing: -0.02em; }
+h2 { font-size: 1.22rem; }
+h3 { font-size: 1.02rem; }
+p  { margin: 0.3rem 0; }
+a  { color: var(--accent); text-decoration: none; }
+a:hover { text-decoration: underline; }
+
+/* ── Primitives ─────────────────────────────────────────────────────── */
+
+.card {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 1.05rem 1.15rem;
+  box-shadow: var(--shadow);
+}
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  border: 1px solid var(--line);
+  background: var(--surface);
+  color: var(--ink);
+  border-radius: 999px;
+  padding: 0.48rem 1rem;
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+  transition: transform 0.12s ease, border-color 0.15s ease;
+}
+.btn:hover:not(:disabled) { transform: translateY(-1px); border-color: var(--accent); }
+.btn:disabled { opacity: 0.45; cursor: not-allowed; }
+.btn-primary {
+  background: linear-gradient(135deg, var(--accent) 0%, var(--accent-strong) 100%);
+  border-color: transparent;
+  color: #f2fff9;
+}
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  border-radius: 999px;
+  padding: 0.12rem 0.6rem;
+  font-size: 0.77rem;
+  font-weight: 700;
+}
+.badge-ok    { background: var(--accent-soft); color: var(--accent-strong); }
+.badge-off   { background: var(--surface-2); color: var(--ink-muted); }
+.badge-new   { background: var(--warn-soft); color: var(--warn); }
+.badge-error { background: var(--danger-soft); color: var(--danger); }
+
+.input {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  color: var(--ink);
+  border-radius: var(--radius-sm);
+  padding: 0.48rem 0.7rem;
+  font: inherit;
+  width: 100%;
+}
+.input:focus { outline: 2px solid var(--accent); outline-offset: 1px; }
+
+.table { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; }
+.table th, .table td { text-align: left; padding: 0.52rem 0.65rem; border-bottom: 1px solid var(--line); }
+.table th {
+  color: var(--ink-muted);
+  font-size: 0.76rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  cursor: pointer;
+  user-select: none;
+}
+.table tbody tr:hover { background: var(--surface-2); }
+
+.muted { color: var(--ink-muted); }
+.mono  { font-variant-numeric: tabular-nums; }
+
+/* Barres de probabilité — plus lisibles qu'un graphe pour 2 à 4 classes. */
+.prob-bar { height: 10px; border-radius: 999px; background: var(--surface-2); overflow: hidden; }
+.prob-bar > span {
+  display: block;
+  height: 100%;
+  border-radius: 999px;
+  background: linear-gradient(90deg, var(--accent) 0%, var(--accent-strong) 100%);
+  transition: width 0.4s ease;
+}
+
+@keyframes pulse { 0%, 100% { opacity: 0.45; } 50% { opacity: 0.9; } }
+.skeleton { border-radius: var(--radius-sm); background: var(--surface-2); animation: pulse 1.4s ease-in-out infinite; }
