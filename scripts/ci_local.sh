@@ -76,11 +76,14 @@ else
   # --cov=src. Leur couverture est assurée par le job test-tf (tests/test_model_builders.py).
   # On les sort de CE gate sans rabaisser le seuil. Le motif '*/models/*' est requis car
   # diff-cover préfixe les chemins. Doit rester aligné avec .github/workflows/ci.yml.
+  # --exclude '*/segmentation/*' '*/training/*' : même logique — tous les modules de
+  # src/segmentation et src/training importent TensorFlow au niveau module (0 % sans TF) ;
+  # leur couverture est exigée par le gate diff-cover du job test-tf (sans exclusion).
   # --ignore-staged --ignore-unstaged : ne juger que le code commité (origin/main...HEAD),
   # pour ne pas ramasser les différences EOL du working tree (.gitattributes eol=lf vs CRLF).
   elif "$PY" -m diff_cover.diff_cover_tool coverage-smoke.xml \
       --compare-branch=origin/main --fail-under=80 \
-      --exclude '*/models/*' \
+      --exclude '*/models/*' '*/segmentation/*' '*/training/*' \
       --ignore-staged --ignore-unstaged; then
     hook_ok "lignes du diff couvertes ≥ 80 %"
   else
@@ -113,6 +116,23 @@ else
   else
     hook_fail "shellcheck a trouvé des problèmes dans les scripts maintenus"
   fi
+fi
+
+# ── 4) Guardrails — MIROIR du job CI « validate » (guardrails.yml) ─────────
+# La CI exige .guardrails/config.env présent ET bin/validate_guardrails.sh
+# exécutable (test -x). Un bit +x perdu (fichier recréé sous Windows/CRLF) ou
+# un config.env oublié faisait échouer la CI sans qu'on le voie en local.
+hook_title "Guardrails (assets + validateur)"
+if [ ! -d .guardrails ]; then
+  hook_skip "pas de .guardrails dans ce repo"
+elif [ ! -f .guardrails/config.env ]; then
+  hook_fail "guardrails : .guardrails/config.env manquant"
+elif [ ! -x .guardrails/bin/validate_guardrails.sh ]; then
+  hook_fail "guardrails : bin/validate_guardrails.sh non exécutable (git update-index --chmod=+x ...)"
+elif ./.guardrails/bin/validate_guardrails.sh >/dev/null 2>&1; then
+  hook_ok "guardrails validés"
+else
+  hook_fail "guardrails validator a échoué"
 fi
 
 hook_summary

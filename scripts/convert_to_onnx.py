@@ -26,6 +26,10 @@ import logging
 import sys
 from pathlib import Path
 
+# Permet `from src...` même lancé en `python scripts/convert_to_onnx.py`
+# (sys.path[0] = scripts/ sinon → ModuleNotFoundError: No module named 'src').
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+
 OPSET = 17  # ONNX opset 17 = support ≥ onnxruntime 1.14 (2023+)
 
 logger = logging.getLogger(__name__)
@@ -88,11 +92,25 @@ def convert_pytorch(src: Path, dst: Path) -> None:
     import torch  # noqa: PLC0415
 
     logger.info("PyTorch → ONNX : %s", src.name)
-    model = torch.load(src, map_location="cpu", weights_only=False)
+    checkpoint = torch.load(src, map_location="cpu", weights_only=False)
+
+    image_size = 224
+    if isinstance(checkpoint, dict) and "state_dict" in checkpoint:
+        # Checkpoint produit par train_brain_mri_torch.py : on reconstruit l'architecture
+        # (depuis model_name + classes) puis on charge les poids. build_model est la source
+        # de vérité partagée → l'archi reconstruite correspond exactement à l'entraînement.
+        from src.training.train_brain_mri_torch import build_model  # noqa: PLC0415
+
+        num_classes = len(checkpoint.get("classes") or []) or 4
+        model = build_model(checkpoint["model_name"], num_classes)
+        model.load_state_dict(checkpoint["state_dict"])
+        image_size = int(checkpoint.get("image_size") or image_size)
+    else:
+        model = checkpoint  # modèle complet (torch.save(model, ...))
     model.eval()
 
-    # Forme standard d'entrée pour les modèles de classification d'images
-    dummy = torch.randn(1, 3, 224, 224)
+    # Forme d'entrée standard (taille issue du checkpoint pour les modèles torch).
+    dummy = torch.randn(1, 3, image_size, image_size)
 
     torch.onnx.export(
         model,

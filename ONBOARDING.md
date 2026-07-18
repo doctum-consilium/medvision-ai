@@ -62,16 +62,72 @@ Elle prend en entrée une image médicale (radiographie, IRM cérébrale) et ré
 
 ### Prérequis
 
+**Python 3.10 → 3.12** (TensorFlow 2.16.1 refuse 3.13+). Vérifier : `python3 --version`.
+
+#### Installation automatique (Ubuntu natif **ou** WSL2) — recommandé
+
+Un script installe **tout** : paquets système, Python, les deux environnements virtuels,
+la stack CUDA (via wheels pip), et contrôle les accès AWS/Kaggle.
+
 ```bash
-# Python 3.10+, pip, git
-python --version  # doit être >= 3.10
+bash scripts/install_prereqs.sh            # tout : env TF + env PyTorch + GPU
+bash scripts/install_prereqs.sh --no-torch # seulement l'env TensorFlow (pipeline DVC)
+bash scripts/install_prereqs.sh --help     # options
+```
+> WSL2 : le driver NVIDIA vient de **Windows** (ne pas l'installer dans WSL). La stack CUDA
+> (cuDNN/NCCL/cuBLAS) est fournie par les wheels pip — **aucun CUDA toolkit système requis**.
 
-# Créer l'environnement virtuel
-python -m venv .venv
-source .venv/bin/activate        # Linux/Mac
-# ou .venv\Scripts\activate      # Windows
+#### Installation manuelle — trois cibles selon l'usage
 
-pip install -r requirements.txt
+| Cible | Environnement | Commande | Contenu |
+|---|---|---|---|
+| **Inférence** (API/Streamlit) | `.venv` | `pip install -r requirements.txt` | onnxruntime, FastAPI, Streamlit, DVC (pas de TF/torch) |
+| **Entraînement TensorFlow** (pipeline `dvc repro`) | `.venv` | `pip install -r requirements-train.txt` | hérite de l'inférence + TensorFlow 2.16.1 [and-cuda], Keras 3.13.2, tf2onnx, kaggle |
+| **Modèles PyTorch / vision** | `.venv-torch` | `pip install -r requirements-torch.txt` | torch 2.6.0+cu124, torchvision 0.21.0 |
+
+```bash
+python3 -m venv .venv && source .venv/bin/activate
+pip install -r requirements-train.txt
+source scripts/gpu_env.sh        # GPU : rend les libs CUDA pip visibles à TF 2.16 (cf. § Entraîner)
+```
+
+> ⚠ **Deux environnements séparés, jamais fusionnés.** TensorFlow (NCCL cu12) et PyTorch
+> (NCCL cu13) partagent le même `libnccl.so.2` et se cassent mutuellement dans un seul env
+> (`undefined symbol: ncclCommResume`). `.venv` = TensorFlow ; `.venv-torch` = PyTorch.
+>
+> ⚠ Piège `ModuleNotFoundError: No module named 'tensorflow'` en lançant `dvc repro` = vous
+> avez installé `requirements.txt` (inférence) au lieu de `requirements-train.txt`.
+
+### Configurer les accès (AWS S3 + Kaggle)
+
+Nécessaire pour `dvc pull`/`dvc push` (modèles sur S3) et pour télécharger les datasets (Kaggle).
+
+**AWS** — deux méthodes au choix, selon la machine :
+```bash
+# Méthode 1 — clés IAM statiques (postes perso, CI). Crée ~/.aws/credentials + ~/.aws/config :
+aws configure
+#   AWS Access Key ID     : <votre clé>
+#   AWS Secret Access Key : <votre secret>
+#   Default region name   : eu-west-3
+#   Default output format  : json
+
+# Méthode 2 — SSO (postes liés à un IdP) :
+aws sso login
+
+# Vérifier (les deux méthodes) :
+aws sts get-caller-identity
+```
+> ⚠ Si `dvc pull` renvoie `Unable to parse config file: ~/.aws/config`, ce fichier
+> n'est pas un INI valide (souvent écrasé). Le recréer :
+> ```bash
+> printf '[default]\nregion = eu-west-3\noutput = json\n' > ~/.aws/config && chmod 600 ~/.aws/config
+> ```
+
+**Kaggle** — pour les scripts `scripts/download_*.sh` :
+```bash
+# 1. https://www.kaggle.com/settings → "Create New API Token" → télécharge kaggle.json
+mkdir -p ~/.kaggle && mv ~/Downloads/kaggle.json ~/.kaggle/kaggle.json
+chmod 600 ~/.kaggle/kaggle.json
 ```
 
 ### Démarrer l'API
@@ -130,12 +186,24 @@ Pour synchroniser les modèles vers S3 (une seule fois, puis `dvc push` après c
 # Ce script fait : terraform apply → docker pull → extract → dvc add → dvc push
 ```
 
-Pour récupérer les modèles depuis S3 sur une nouvelle machine :
+Pour récupérer les modèles depuis S3 sur une machine **déjà clonée** (cas courant) :
 ```bash
-pip install dvc[s3]
+pip install 'dvc[s3]'
+# Le remote 's3remote' est déjà versionné dans .dvc/config — NE PAS le re-créer.
+# Prérequis : ~/.aws/credentials valide + ~/.aws/config lisible (region = eu-west-3).
+dvc pull
+```
+
+> Si `dvc pull` échoue sur `Unable to parse config file: ~/.aws/config`, c'est que
+> ce fichier n'est pas un INI valide (ex. écrasé par une archive). Recréer un minimum :
+> ```bash
+> printf '[default]\nregion = eu-west-3\noutput = json\n' > ~/.aws/config && chmod 600 ~/.aws/config
+> ```
+
+Première initialisation du remote uniquement (machine sans `.dvc/config`, à ne pas refaire ensuite) :
+```bash
 dvc remote add -d s3remote s3://platform-medvision-dvc-artifacts/models
 dvc remote modify s3remote region eu-west-3
-dvc pull
 ```
 
 **En local (développement)** : après entraînement, les modèles apparaissent dans `artifacts/models/`.
@@ -145,6 +213,8 @@ L'API renvoie alors 404 sur `/predict` jusqu'à ce que vous ayez des modèles.
 ---
 
 ## Entraîner un modèle
+
+**Prérequis** : `pip install -r requirements-train.txt` (niveau **B**) + `~/.kaggle/kaggle.json` configuré (voir « Configurer les accès » ci-dessus).
 
 ### 1. Télécharger les données
 
@@ -158,18 +228,46 @@ bash scripts/download_brain_mri_dataset.sh
 
 ### 2. Lancer l'entraînement
 
+**Voie recommandée — pipeline reproductible (identique d'un poste à l'autre)** : `dvc.yaml`
+décrit toute la chaîne data → préparation → entraînement → conversion ONNX. Une seule commande :
+
+```bash
+# GPU : TensorFlow 2.16 (wheels pip) ne déclare pas seul ses libs CUDA → sourcer ce helper
+# AVANT dvc repro (sinon TF tombe sur CPU = beaucoup plus lent). Aucun effet si pas de GPU.
+source scripts/gpu_env.sh
+
+dvc repro              # entraîne les 17 modèles du registry + convertit en ONNX (gère les 2 envs)
+dvc repro -f           # tout reconstruire de zéro
+dvc status             # voir ce qui est à jour / périmé
+```
+
+Le pipeline `dvc.yaml` est en `foreach` : il entraîne les **6 backbones chest + 6 brain_mri
+Keras** (env `.venv`), les **3 modèles PyTorch** (env `.venv-torch`, via `scripts/_dvc_torch.sh`)
+et les **2 segmentations**, puis `convert_to_onnx` produit les **17 `.onnx`** — c'est cette stage
+que la prod tire (`dvc pull convert_to_onnx`). Les wrappers `scripts/_dvc_{tf,torch,convert}.sh`
+basculent d'environnement automatiquement (pas besoin d'activer un env avant `dvc repro`).
+
+> Vérifier que le GPU est vu : `python -c "import tensorflow as tf; print(tf.config.list_physical_devices('GPU'))"`
+> doit lister `GPU:0`. Sinon, l'entraînement fonctionne quand même mais sur CPU.
+
+**Alternative sans DVC** — `scripts/train_all.sh` entraîne les mêmes 17 modèles séquentiellement
+(sans cache/versionnage DVC), utile pour un run rapide ou du debug :
+```bash
+bash scripts/train_all.sh --skip-existing   # --help pour les options
+```
+
+**Voie manuelle — lancer une étape précise** (les noms réels des modules ; cf. `dvc.yaml`) :
+
 ```bash
 # Classification pneumonie (chest X-ray)
-python -m src.training.train_classification \
-  --config configs/chest_xray_classification.yaml
+python -m src.training.train --config configs/config.yaml --model optimized
 
-# Classification tumeur cérébrale
-python -m src.training.train_classification \
-  --config configs/brain_mri_classification.yaml
+# Classification tumeur cérébrale (IRM)
+python -m src.training.train_brain_mri --config configs/brain_tumor_mri.yaml
 
-# Segmentation multitâche (chest)
-python -m src.segmentation.train_multitask \
-  --config configs/chest_xray_segmentation.yaml
+# Segmentation U-Net (chest ou brain)
+python -m src.segmentation.train_segmentation --config configs/chest_xray_segmentation.yaml
+python -m src.segmentation.train_segmentation --config configs/brain_tumor_segmentation.yaml
 ```
 
 MLflow enregistre automatiquement les métriques (accuracy, loss) et les modèles.
@@ -315,8 +413,9 @@ Si "dvc pull a échoué" → entraîner un modèle → `dvc push` → redeploy (
 
 ### `AttributeError: 'NoneType' object has no attribute 'pop'` lors d'une prédiction
 
-Incompatibilité de version Keras. Les modèles doivent être sauvés avec Keras 3.3.3.
-Vérifier que `keras==3.3.3` est bien dans `requirements.txt` et que l'image a été rebuild après ajout.
+Incompatibilité de version Keras. Les modèles doivent être entraînés/sauvés avec la version
+épinglée dans `requirements-train.txt` (`keras==3.13.2`). Vérifier cette version et, pour la prod,
+que l'inférence ONNX (`onnxruntime`) reste découplée de Keras.
 
 ### Port-forward MLflow
 
@@ -338,9 +437,8 @@ dvc status
 # Rejouer le pipeline depuis le début
 dvc repro
 
-# Configurer le remote S3 (après avoir appliqué terraform/aws_dvc_remote/)
-dvc remote add -d s3remote s3://platform-medvision-artifacts
-dvc remote modify s3remote region eu-west-3
+# Le remote 's3remote' est DÉJÀ versionné dans .dvc/config — ne pas le re-créer.
+# (url = s3://platform-medvision-dvc-artifacts/models, region = eu-west-3)
 dvc push   # envoie les artefacts sur S3
 dvc pull   # récupère les artefacts depuis S3
 ```

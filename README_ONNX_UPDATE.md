@@ -29,7 +29,7 @@ Bénéfices supplémentaires :
 
 ## Prérequis
 
-- **Machine avec GPU/ML** : `conda activate GPUMachineLearning` (Keras 3.13.2, PyTorch)
+- **Machine avec GPU/ML** : env. Python 3.10–3.12 (venv ou conda) avec `requirements-train.txt` installé (Keras 3.13.2, PyTorch)
 - **AWS CLI** configuré (accès au bucket S3 utilisé par DVC)
 - **Git** configuré avec accès en écriture au repo
 
@@ -40,8 +40,8 @@ Bénéfices supplémentaires :
 ### 1. Préparer l'environnement
 
 ```bash
-conda activate GPUMachineLearning
-pip install tf2onnx>=1.16 onnx>=1.16
+source .venv/bin/activate        # ou : conda activate <votre-env>
+pip install -r requirements-train.txt    # inclut tf2onnx, onnx
 git pull origin feat/ci-quality-2026-06-15
 ```
 

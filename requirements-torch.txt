@@ -1,0 +1,26 @@
+# Dépendances PyTorch / vision — modèles entraînés avec torch (ex. src/training/train_brain_mri_torch.py).
+# ENVIRONNEMENT SÉPARÉ du TensorFlow : ne JAMAIS installer torch et tensorflow dans le même env
+# (collision NCCL libnccl.so.2 entre cu12 et cu13). Voir requirements-train.txt.
+#
+# Usage (Python 3.10–3.12) :
+#   python -m venv .venv-torch && source .venv-torch/bin/activate
+#   pip install -r requirements-torch.txt
+#   python -c "import torch; print('CUDA:', torch.cuda.is_available())"
+#
+# Build CUDA 12.4 (compatible driver récent, y compris WSL). L'index pytorch fournit
+# les wheels +cu124 (libs CUDA/cuDNN/NCCL groupées, GPU sans installation système).
+--index-url https://download.pytorch.org/whl/cu124
+
+torch==2.6.0
+torchvision==0.21.0
+
+# Conversion ONNX côté torch (.pt → .onnx) + imagerie médicale + entraînement, depuis PyPI.
+# NB : pas de `-r requirements.txt` ici — il pin numpy==1.26.4, incompatible avec le numpy 2.x
+# de torch 2.6. On liste donc seulement les deps communes réellement utilisées par le code torch.
+--extra-index-url https://pypi.org/simple
+onnx>=1.16,<1.18
+nibabel>=5.0
+# Entraînement torch : load_config (yaml), métriques (sklearn), suivi (mlflow).
+pyyaml>=6.0
+scikit-learn>=1.5
+mlflow>=2.16
