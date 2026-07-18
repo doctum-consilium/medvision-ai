@@ -19,6 +19,7 @@ client n'est jamais ouvert (pas de traversée de répertoires possible).
 from __future__ import annotations
 
 import hashlib
+import re
 from pathlib import Path
 from typing import Any
 
@@ -64,6 +65,27 @@ def looks_like_mask_path(path: Path) -> bool:
         or parent in {"mask", "masks", "seg", "segs", "labels"}
         or any(part in {"mask", "masks", "seg", "segs", "labels"} for part in parts)
     )
+
+
+def looks_like_generated_sample(path: Path) -> bool:
+    """Détecte les images SYNTHÉTIQUES produites par le générateur de test.
+
+    `scripts/generate_sample_images.py` fabrique des PNG factices (bruit +
+    carré clair) nommés ``sample_000.png`` ou ``glioma_sample_000.png``,
+    pour qu'une machine sans dataset ait quand même une interface peuplée.
+
+    POURQUOI les exclure : en production, ces bouche-trous se retrouvaient
+    proposés comme s'ils étaient de vraies images médicales — le navigateur
+    du problème « Brain Tumor Segmentation » n'affichait qu'eux (incident
+    2026-07-18). Un carré gris sur du bruit n'est pas une IRM.
+
+    Args:
+        path: Chemin du fichier image candidat.
+
+    Returns:
+        True si le nom correspond au motif du générateur d'échantillons.
+    """
+    return re.fullmatch(r"(?:.+_)?sample_\d{3}", path.stem) is not None
 
 
 def sample_public_id(path: Path) -> str:
@@ -202,6 +224,10 @@ def collect_images_from_dirs(
             if not is_supported_image(path):
                 continue
             if exclude_masks and looks_like_mask_path(path):
+                continue
+            # Jamais d'image synthétique de test dans le navigateur : ce sont
+            # des bouche-trous de développement, pas des images médicales.
+            if looks_like_generated_sample(path):
                 continue
             label_hint = infer_label_from_path(path, expected_labels)
             sample = _make_sample(path, label_hint)
@@ -418,12 +444,26 @@ def build_problem_image_database(
         )
         if samples:
             return samples
-        return collect_images_from_dirs(
+        samples = collect_images_from_dirs(
             [root / "data/raw/brain_tumor_segmentation"],
             root=root,
             limit=limit,
             expected_labels=expected_labels,
             exclude_masks=True,
+        )
+        if samples:
+            return samples
+        # Dernier recours : les IRM du problème de classification frère — même
+        # corpus, mêmes modalités, et elles sont déjà sur le volume de données.
+        # C'est le repli qui existe déjà pour la segmentation pulmonaire.
+        return collect_images_from_dirs(
+            [
+                root / "data/raw/brain_tumor_mri/Testing",
+                root / "data/raw/brain_tumor_mri/Training",
+            ],
+            root=root,
+            limit=limit,
+            expected_labels=expected_labels,
         )
     if problem == "chest_xray_segmentation":
         samples = collect_images_from_manifest(

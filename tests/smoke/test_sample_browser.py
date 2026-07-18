@@ -20,6 +20,7 @@ from src.datasets.sample_browser import (
     filter_samples,
     infer_label_from_path,
     is_supported_image,
+    looks_like_generated_sample,
     looks_like_mask_path,
     recommended_samples,
     sample_public_id,
@@ -223,6 +224,50 @@ def test_build_problem_image_database_segmentation_manifest_first(tmp_path: Path
     samples = build_problem_image_database("brain_tumor_segmentation", limit=10, root=tmp_path)
     assert len(samples) == 1
     assert samples[0]["label"] == "tumor"
+
+
+def test_looks_like_generated_sample_reconnait_le_generateur() -> None:
+    """Les PNG factices de scripts/generate_sample_images.py sont reconnus."""
+    assert looks_like_generated_sample(Path("data/raw/chest_xray/NORMAL/sample_000.png"))
+    assert looks_like_generated_sample(Path("data/raw/x/glioma_sample_012.png"))
+    # Une vraie image de dataset ne doit surtout pas être prise pour un faux.
+    assert not looks_like_generated_sample(Path("data/raw/x/Te-gl_0010.jpg"))
+    assert not looks_like_generated_sample(Path("data/raw/x/person1_bacteria_1.jpeg"))
+    assert not looks_like_generated_sample(Path("data/raw/x/sample_patient.png"))
+
+
+def test_collect_images_exclut_les_images_synthetiques(tmp_path: Path) -> None:
+    """Le navigateur ignore les bouche-trous générés, garde les vraies images."""
+    _write_png(tmp_path / "IRM" / "sample_000.png")
+    _write_png(tmp_path / "IRM" / "glioma_sample_001.png")
+    vraie = _write_png(tmp_path / "IRM" / "Te-gl_0042.png")
+
+    samples = collect_images_from_dirs([tmp_path], root=tmp_path, limit=10)
+    assert [s["path"] for s in samples] == [vraie]
+
+
+def test_brain_seg_se_rabat_sur_les_vraies_irm(tmp_path: Path) -> None:
+    """Sans données de segmentation réelles, on sert les IRM du problème frère.
+
+    Vécu en production : le dossier de segmentation cérébrale ne contenait que
+    12 images synthétiques ; le navigateur n'affichait que du bruit avec un
+    carré gris. Les vraies IRM sont déjà présentes sous brain_tumor_mri.
+    """
+    # Le dossier de segmentation n'a que des images générées → inutilisables.
+    _write_png(tmp_path / "data/raw/brain_tumor_segmentation/images/glioma_sample_000.png")
+    # Les vraies IRM du corpus frère.
+    _write_png(tmp_path / "data/raw/brain_tumor_mri/Testing/glioma/Te-gl_0001.png")
+    _write_png(tmp_path / "data/raw/brain_tumor_mri/Testing/meningioma/Te-me_0001.png")
+
+    samples = build_problem_image_database(
+        "brain_tumor_segmentation",
+        expected_labels=["glioma", "meningioma", "pituitary tumor"],
+        limit=10,
+        root=tmp_path,
+    )
+    assert samples, "aucun échantillon : le repli sur les vraies IRM n'a pas joué"
+    assert all("brain_tumor_mri" in str(s["path"]) for s in samples)
+    assert all("_sample_" not in Path(s["path"]).name for s in samples)
 
 
 def test_build_problem_image_database_unknown_problem(tmp_path: Path) -> None:
