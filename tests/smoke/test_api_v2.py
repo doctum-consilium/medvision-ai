@@ -111,7 +111,9 @@ def test_api_problems_lists_the_four_problems_with_counters(app_env) -> None:
         "chest_xray_segmentation",
     }
     chest = problems["chest_xray"]
-    assert chest["models_total"] == 6
+    # 5 (et non 6) : convnexttiny est désactivé tant que son export ONNX
+    # invalide n'a pas été refait sur la machine ML.
+    assert chest["models_total"] == 5
     assert chest["models_available"] == 1  # seul optimized_model.onnx existe
     assert problems["brain_mri"]["models_available"] == 0
 
@@ -135,7 +137,7 @@ def test_api_compare_rows(app_env) -> None:
     """Le comparatif renvoie une ligne par modèle du problème."""
     _, client, _ = app_env
     body = client.get("/api/compare", params={"problem": "chest_xray"}).json()
-    assert len(body["rows"]) == 6
+    assert len(body["rows"]) == 5  # convnexttiny désactivé (export invalide)
     assert client.get("/api/compare", params={"problem": "nope"}).status_code == 404
 
 

@@ -30,12 +30,16 @@ PROBLEMS: dict[str, dict[str, Any]] = {
     "chest_xray": {
         "label": "Chest X-ray Pneumonia Classification",
         "config_path": "configs/config.yaml",
+        # « convnexttiny » DÉSACTIVÉ (2026-07-18) : l'export tf2onnx produit un
+        # ONNX invalide (INVALID_GRAPH sur le bloc depthwise ConvNeXt) — chaque
+        # inférence affichait une erreur. Réactiver (dé-commenter les 3 lignes
+        # convnexttiny ci-dessous) après ré-export sur la machine ML + dvc push.
         "model_candidates": {
             "baseline": "baseline_model.onnx",
             "optimized": "optimized_model.onnx",
             "densenet121": "densenet121_model.onnx",
             "efficientnetv2b0": "efficientnetv2b0_model.onnx",
-            "convnexttiny": "convnexttiny_model.onnx",
+            # "convnexttiny": "convnexttiny_model.onnx",
             "resnet50v2": "resnet50v2_model.onnx",
         },
         "report_candidates": {
@@ -43,7 +47,7 @@ PROBLEMS: dict[str, dict[str, Any]] = {
             "optimized": "optimized_classification_report.txt",
             "densenet121": "densenet121_classification_report.txt",
             "efficientnetv2b0": "efficientnetv2b0_classification_report.txt",
-            "convnexttiny": "convnexttiny_classification_report.txt",
+            # "convnexttiny": "convnexttiny_classification_report.txt",
             "resnet50v2": "resnet50v2_classification_report.txt",
         },
         "metrics_candidates": {
@@ -51,7 +55,7 @@ PROBLEMS: dict[str, dict[str, Any]] = {
             "optimized": ["optimized_metrics.json"],
             "densenet121": ["densenet121_metrics.json"],
             "efficientnetv2b0": ["efficientnetv2b0_metrics.json"],
-            "convnexttiny": ["convnexttiny_metrics.json"],
+            # "convnexttiny": ["convnexttiny_metrics.json"],
             "resnet50v2": ["resnet50v2_metrics.json"],
         },
         "class_names": ["NORMAL", "PNEUMONIA"],
@@ -60,12 +64,14 @@ PROBLEMS: dict[str, dict[str, Any]] = {
     "brain_mri": {
         "label": "Brain MRI Tumor Classification",
         "config_path": "configs/brain_tumor_mri.yaml",
+        # « convnexttiny » DÉSACTIVÉ (2026-07-18) : même bug d'export tf2onnx
+        # que la variante chest — réactiver après ré-export + dvc push.
         "model_candidates": {
             "optimized": "brain_mri_optimized.onnx",
             "baseline": "brain_mri_baseline.onnx",
             "densenet121": "brain_mri_densenet121.onnx",
             "efficientnetv2b0": "brain_mri_efficientnetv2b0.onnx",
-            "convnexttiny": "brain_mri_convnexttiny.onnx",
+            # "convnexttiny": "brain_mri_convnexttiny.onnx",
             "resnet50v2": "brain_mri_resnet50v2.onnx",
             "densenet121_torch": "brain_mri_densenet121_torch.onnx",
             "resnet50_torch": "brain_mri_resnet50_torch.onnx",
@@ -76,7 +82,7 @@ PROBLEMS: dict[str, dict[str, Any]] = {
             "baseline": "brain_mri_baseline_classification_report.txt",
             "densenet121": "brain_mri_densenet121_classification_report.txt",
             "efficientnetv2b0": "brain_mri_efficientnetv2b0_classification_report.txt",
-            "convnexttiny": "brain_mri_convnexttiny_classification_report.txt",
+            # "convnexttiny": "brain_mri_convnexttiny_classification_report.txt",
             "resnet50v2": "brain_mri_resnet50v2_classification_report.txt",
         },
         "metrics_candidates": {
@@ -84,7 +90,7 @@ PROBLEMS: dict[str, dict[str, Any]] = {
             "baseline": ["brain_mri_baseline_metrics.json"],
             "densenet121": ["brain_mri_densenet121_metrics.json"],
             "efficientnetv2b0": ["brain_mri_efficientnetv2b0_metrics.json"],
-            "convnexttiny": ["brain_mri_convnexttiny_metrics.json"],
+            # "convnexttiny": ["brain_mri_convnexttiny_metrics.json"],
             "resnet50v2": ["brain_mri_resnet50v2_metrics.json"],
             "densenet121_torch": ["brain_mri_densenet121_torch_metrics.json"],
             "resnet50_torch": ["brain_mri_resnet50_torch_metrics.json"],
@@ -104,6 +110,10 @@ PROBLEMS: dict[str, dict[str, Any]] = {
         },
         "class_names": ["glioma", "meningioma", "pituitary", "notumor"],
         "task_type": "segmentation_multitask",
+        # Second avis : la tête de classification du U-Net multitâche est
+        # bien plus faible que les classifieurs dédiés — on affiche AUSSI le
+        # verdict du meilleur modèle du problème de classification frère.
+        "companion_problem": "brain_mri",
     },
     "chest_xray_segmentation": {
         "label": "Chest X-ray Lung Segmentation + Abnormality Classification",
@@ -116,6 +126,10 @@ PROBLEMS: dict[str, dict[str, Any]] = {
         },
         "class_names": ["NORMAL", "ABNORMAL"],
         "task_type": "segmentation_multitask",
+        # Second avis : la tête de classification de CE U-Net est notoirement
+        # mauvaise (NORMAL à 1.000 sur des pneumonies avérées — incident
+        # 2026-07-18). Le meilleur classifieur pneumonie tranche à côté.
+        "companion_problem": "chest_xray",
     },
 }
 
@@ -159,6 +173,9 @@ def load_registry(artifacts_dir: str | Path = DEFAULT_ARTIFACTS_DIR) -> dict[str
             "label": spec["label"],
             "task_type": spec["task_type"],
             "class_names": config.get("class_names", spec["class_names"]),
+            # Problème « frère » dont le meilleur classifieur donne un second
+            # avis (None pour les problèmes de classification pure).
+            "companion_problem": spec.get("companion_problem"),
             "models": {},
         }
         for model_key, model_filename in spec["model_candidates"].items():
@@ -182,6 +199,57 @@ def load_registry(artifacts_dir: str | Path = DEFAULT_ARTIFACTS_DIR) -> dict[str
         registry["problems"][problem_key] = problem_entry
 
     return registry
+
+
+# Métriques candidates pour classer les modèles, de la plus parlante à la
+# moins : la première présente dans les metrics JSON d'un modèle est utilisée.
+_RANKING_METRICS = ("test_accuracy", "accuracy", "val_accuracy", "auc", "f1")
+
+
+def best_available_model(
+    problem: str,
+    artifacts_dir: str | Path = DEFAULT_ARTIFACTS_DIR,
+    registry: dict[str, Any] | None = None,
+) -> tuple[str, dict[str, Any]] | None:
+    """Choisit le meilleur modèle DISPONIBLE d'un problème, par ses métriques.
+
+    Sert au « second avis » des problèmes de segmentation : la tête de
+    classification des U-Net multitâches est faible, on tranche donc avec le
+    meilleur classifieur dédié du problème frère.
+
+    Args:
+        problem: Identifiant du problème (ex. "chest_xray").
+        artifacts_dir: Racine des artefacts (ignorée si `registry` fourni).
+        registry: Registre déjà chargé (évite un re-scan disque).
+
+    Returns:
+        (nom_du_modèle, entrée complète avec class_names/task_type), ou None
+        si aucun modèle n'est disponible.
+    """
+    registry = registry if registry is not None else load_registry(artifacts_dir)
+    problem_entry = registry["problems"].get(problem)
+    if not problem_entry:
+        return None
+
+    def score(meta: dict[str, Any]) -> float:
+        metrics = meta.get("metrics", {}) or {}
+        for key in _RANKING_METRICS:
+            value = metrics.get(key)
+            if isinstance(value, int | float):
+                return float(value)
+        return -1.0  # disponible mais sans métriques : dernier recours
+
+    candidates = [
+        (name, meta) for name, meta in problem_entry["models"].items() if meta.get("available")
+    ]
+    if not candidates:
+        return None
+    name, meta = max(candidates, key=lambda item: score(item[1]))
+    return name, {
+        **meta,
+        "class_names": problem_entry["class_names"],
+        "task_type": problem_entry["task_type"],
+    }
 
 
 def format_model_input(session: Any, image: Any) -> Any:
