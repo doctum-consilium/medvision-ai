@@ -113,9 +113,19 @@ def test_tf_backbones_registry_is_well_formed() -> None:
         "efficientnetv2b0",
         "convnexttiny",
         "resnet50v2",
+        "optimized",
     }
     for name, cfg in TF_BACKBONES.items():
         assert isinstance(cfg, BackboneConfig), name
         assert callable(cfg.cls), name
         assert callable(cfg.preprocess), name
         assert cfg.unfreeze_layers > 0, name
+
+    # « optimized » est l'alias canonique utilisé par dvc.yaml et les artefacts
+    # S3 : il doit rester strictement identique à EfficientNetV2B0, sinon les
+    # modèles rechargés depuis S3 ne correspondraient plus à leur architecture.
+    assert TF_BACKBONES["optimized"].cls is tf.keras.applications.EfficientNetV2B0
+    assert (
+        TF_BACKBONES["optimized"].preprocess
+        is tf.keras.applications.efficientnet_v2.preprocess_input
+    )
