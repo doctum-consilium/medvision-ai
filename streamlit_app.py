@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import hashlib
 import tempfile
 from pathlib import Path
 from typing import Any
@@ -10,254 +9,30 @@ import pandas as pd
 import streamlit as st
 from PIL import Image
 
+# La logique de découverte/indexation des images vit dans un module PUR
+# (sans Streamlit) partagé avec l'API FastAPI : une seule source de vérité
+# pour que Streamlit et le front Angular montrent exactement les mêmes
+# échantillons. Voir src/datasets/sample_browser.py.
+from src.datasets.sample_browser import (
+    build_problem_image_database,
+)
+from src.datasets.sample_browser import (
+    filter_samples as _filter_samples,
+)
+from src.datasets.sample_browser import (
+    recommended_samples as _recommended_samples,
+)
 from src.preprocessing.image_loader import load_and_preprocess_image
 from src.registry.model_registry import compare_models, get_model_entry, load_onnx_model, load_registry
 
-IMAGE_EXTENSIONS = {".png", ".jpg", ".jpeg", ".bmp", ".webp"}
-
-
-def _is_supported_image(path: Path) -> bool:
-    return path.is_file() and path.suffix.lower() in IMAGE_EXTENSIONS
-
-
-def _looks_like_mask_path(path: Path) -> bool:
-    parts = [part.lower() for part in path.parts]
-    stem = path.stem.lower()
-    parent = path.parent.name.lower()
-    return (
-        "mask" in stem
-        or stem.endswith("_seg")
-        or "label" in stem
-        or parent in {"mask", "masks", "seg", "segs", "labels"}
-        or any(part in {"mask", "masks", "seg", "segs", "labels"} for part in parts)
-    )
-
-
-def _sample_public_id(path: Path) -> str:
-    digest = hashlib.blake2s(str(path).encode("utf-8"), digest_size=5).hexdigest()
-    return f"sample-{digest}"
-
 
 def _load_preview_image(path: Path) -> np.ndarray | None:
+    """Charge une vignette RGB pour l'affichage, None si le fichier est illisible."""
     try:
         with Image.open(path) as img:
             return np.array(img.convert("RGB"))
     except Exception:
         return None
-
-
-def _normalize_label(value: str) -> str:
-    return "".join(ch for ch in value.lower() if ch.isalnum())
-
-
-def _canonical_label(raw_label: str, expected_labels: list[str] | None) -> str:
-    if not expected_labels:
-        return raw_label
-    raw_norm = _normalize_label(raw_label)
-    for label in expected_labels:
-        label_norm = _normalize_label(label)
-        if raw_norm == label_norm:
-            return label
-        if raw_norm and label_norm and (raw_norm in label_norm or label_norm in raw_norm):
-            return label
-    return raw_label
-
-
-def _infer_label_from_path(path: Path, expected_labels: list[str] | None) -> str:
-    if not expected_labels:
-        return path.parent.name
-    parts = [part for part in path.parts if part]
-    candidates = [path.parent.name, path.stem]
-    candidates.extend(parts[::-1])
-    for candidate in candidates:
-        canonical = _canonical_label(candidate, expected_labels)
-        if canonical in expected_labels:
-            return canonical
-    return _canonical_label(path.parent.name, expected_labels)
-
-
-def _collect_images_from_dirs(
-    directories: list[Path],
-    root: Path,
-    limit: int,
-    expected_labels: list[str] | None = None,
-    exclude_masks: bool = False,
-) -> list[dict[str, Any]]:
-    buckets: dict[str, list[dict[str, Any]]] = {}
-    per_label_limit = None
-    if expected_labels:
-        per_label_limit = max(1, limit // max(1, len(expected_labels)))
-        buckets = {label: [] for label in expected_labels}
-
-    samples: list[dict[str, Any]] = []
-    for directory in directories:
-        if not directory.exists():
-            continue
-        for path in directory.rglob("*"):
-            if not _is_supported_image(path):
-                continue
-            if exclude_masks and _looks_like_mask_path(path):
-                continue
-            label_hint = _infer_label_from_path(path, expected_labels)
-            sample_id = _sample_public_id(path)
-            sample = {
-                "path": path,
-                "label": label_hint,
-                "sample_id": sample_id,
-                "display": f"{label_hint} | {sample_id}",
-            }
-            if expected_labels and per_label_limit is not None and label_hint in buckets:
-                if len(buckets[label_hint]) < per_label_limit:
-                    buckets[label_hint].append(sample)
-                if all(len(buckets[label]) >= per_label_limit for label in expected_labels):
-                    break
-            else:
-                samples.append(sample)
-                if len(samples) >= limit:
-                    return samples
-        if expected_labels and per_label_limit is not None and all(len(buckets[label]) >= per_label_limit for label in expected_labels):
-            break
-
-    if expected_labels and per_label_limit is not None:
-        balanced: list[dict[str, Any]] = []
-        round_idx = 0
-        while len(balanced) < limit:
-            added_in_round = False
-            for label in expected_labels:
-                bucket = buckets.get(label, [])
-                if round_idx < len(bucket):
-                    balanced.append(bucket[round_idx])
-                    added_in_round = True
-                    if len(balanced) >= limit:
-                        break
-            if not added_in_round:
-                break
-            round_idx += 1
-        return balanced
-
-    return samples
-
-
-def _collect_images_from_manifest(
-    manifest_path: Path,
-    root: Path,
-    limit: int,
-    expected_labels: list[str] | None = None,
-) -> list[dict[str, Any]]:
-    if not manifest_path.exists():
-        return []
-    try:
-        manifest_df = pd.read_csv(manifest_path)
-    except Exception:
-        return []
-    if "image_path" not in manifest_df.columns:
-        return []
-
-    buckets: dict[str, list[dict[str, Any]]] = {}
-    per_label_limit = None
-    if expected_labels:
-        per_label_limit = max(1, limit // max(1, len(expected_labels)))
-        buckets = {label: [] for label in expected_labels}
-
-    samples: list[dict[str, Any]] = []
-    for _, row in manifest_df.iterrows():
-        image_path_raw = row.get("image_path")
-        if not isinstance(image_path_raw, str) or not image_path_raw.strip():
-            continue
-        candidate = Path(image_path_raw)
-        if not candidate.is_absolute():
-            candidate = root / candidate
-        if not _is_supported_image(candidate):
-            continue
-        raw_label = str(row.get("label", candidate.parent.name))
-        label_hint = _canonical_label(raw_label, expected_labels)
-        sample_id = _sample_public_id(candidate)
-        sample = {
-            "path": candidate,
-            "label": label_hint,
-            "sample_id": sample_id,
-            "display": f"{label_hint} | {sample_id}",
-        }
-        if expected_labels and per_label_limit is not None and label_hint in buckets:
-            if len(buckets[label_hint]) < per_label_limit:
-                buckets[label_hint].append(sample)
-            if all(len(buckets[label]) >= per_label_limit for label in expected_labels):
-                break
-        else:
-            samples.append(sample)
-            if len(samples) >= limit:
-                break
-
-    if expected_labels and per_label_limit is not None:
-        balanced: list[dict[str, Any]] = []
-        round_idx = 0
-        while len(balanced) < limit:
-            added_in_round = False
-            for label in expected_labels:
-                bucket = buckets.get(label, [])
-                if round_idx < len(bucket):
-                    balanced.append(bucket[round_idx])
-                    added_in_round = True
-                    if len(balanced) >= limit:
-                        break
-            if not added_in_round:
-                break
-            round_idx += 1
-        return balanced
-
-    return samples
-
-
-def _filter_samples(samples: list[dict[str, Any]], labels: list[str], query: str) -> list[dict[str, Any]]:
-    filtered = samples
-    if labels:
-        label_set = {label.lower() for label in labels}
-        filtered = [sample for sample in filtered if str(sample.get("label", "")).lower() in label_set]
-    q = query.strip().lower()
-    if q:
-        filtered = [
-            sample
-            for sample in filtered
-            if q in str(sample.get("sample_id", "")).lower()
-            or q in str(sample.get("display", "")).lower()
-            or q in str(sample.get("label", "")).lower()
-        ]
-    return filtered
-
-
-def _samples_with_expected_labels(samples: list[dict[str, Any]], expected_labels: list[str] | None) -> list[dict[str, Any]]:
-    if not expected_labels:
-        return samples
-    expected = {str(label).lower() for label in expected_labels}
-    return [sample for sample in samples if str(sample.get("label", "")).lower() in expected]
-
-
-def _recommended_samples(samples: list[dict[str, Any]], max_items: int = 4) -> list[dict[str, Any]]:
-    if not samples:
-        return []
-
-    grouped: dict[str, list[dict[str, Any]]] = {}
-    for sample in samples:
-        key = str(sample.get("label", "unknown"))
-        grouped.setdefault(key, []).append(sample)
-
-    picks: list[dict[str, Any]] = []
-    for label in sorted(grouped.keys()):
-        if grouped[label]:
-            picks.append(grouped[label][0])
-        if len(picks) >= max_items:
-            return picks
-
-    if len(picks) < max_items:
-        existing = {str(item.get("sample_id", item.get("display", ""))) for item in picks}
-        for sample in samples:
-            key = str(sample.get("sample_id", sample.get("display", "")))
-            if key in existing:
-                continue
-            picks.append(sample)
-            if len(picks) >= max_items:
-                break
-    return picks
 
 
 def _render_fixed_label_filters(problem: str, labels: list[str]) -> list[str]:
@@ -304,74 +79,12 @@ def _render_fixed_label_filters(problem: str, labels: list[str]) -> list[str]:
 
 @st.cache_data(show_spinner=False)
 def _build_problem_image_database(problem: str, expected_labels: list[str] | None = None, limit: int = 60) -> list[dict[str, Any]]:
-    root = Path(".").resolve()
-    if problem == "chest_xray":
-        return _collect_images_from_dirs(
-            [
-                root / "data/raw/chest_xray/test",
-                root / "data/raw/chest_xray/val",
-                root / "data/raw/chest_xray/train",
-            ],
-            root=root,
-            limit=limit,
-            expected_labels=expected_labels,
-        )
-    if problem == "brain_mri":
-        return _collect_images_from_dirs(
-            [
-                root / "data/raw/brain_tumor_mri/Testing",
-                root / "data/raw/brain_tumor_mri/Training",
-            ],
-            root=root,
-            limit=limit,
-            expected_labels=expected_labels,
-        )
-    if problem == "brain_tumor_segmentation":
-        samples = _collect_images_from_manifest(
-            root / "data/processed/brain_tumor_segmentation/manifest.csv",
-            root=root,
-            limit=limit,
-            expected_labels=expected_labels,
-        )
-        if samples:
-            return samples
-        return _collect_images_from_dirs(
-            [root / "data/raw/brain_tumor_segmentation"],
-            root=root,
-            limit=limit,
-            expected_labels=expected_labels,
-            exclude_masks=True,
-        )
-    if problem == "chest_xray_segmentation":
-        samples = _collect_images_from_manifest(
-            root / "data/processed/chest_xray_segmentation/manifest.csv",
-            root=root,
-            limit=limit,
-            expected_labels=expected_labels,
-        )
-        if samples:
-            return samples
-        samples = _collect_images_from_dirs(
-            [root / "data/raw/chest_xray_segmentation"],
-            root=root,
-            limit=limit,
-            expected_labels=expected_labels,
-            exclude_masks=True,
-        )
-        samples = _samples_with_expected_labels(samples, expected_labels)
-        if samples:
-            return samples
-        return _collect_images_from_dirs(
-            [
-                root / "data/raw/chest_xray/test",
-                root / "data/raw/chest_xray/val",
-                root / "data/raw/chest_xray/train",
-            ],
-            root=root,
-            limit=limit,
-            expected_labels=expected_labels,
-        )
-    return []
+    """Base d'images navigables d'un problème, avec cache Streamlit.
+
+    Wrapper fin : la logique vit dans src/datasets/sample_browser.py
+    (partagée avec l'API FastAPI) ; on ne garde ici que le cache UI.
+    """
+    return build_problem_image_database(problem, expected_labels=expected_labels, limit=limit)
 
 
 def _run_onnx(session: Any, image: np.ndarray) -> dict[str, np.ndarray]:
@@ -772,7 +485,7 @@ with tab_predict:
                                 "predicted_class": result["predicted_class"],
                                 "confidence": float(result.get("confidence", 0.0)),
                                 "mask_foreground_ratio": float(result.get("mask_foreground_ratio", 0.0)),
-                                **{f"metric_{k}": v for k, v in result["metrics"].items() if isinstance(v, (int, float))},
+                                **{f"metric_{k}": v for k, v in result["metrics"].items() if isinstance(v, int | float)},
                             }
                         )
                         prob_row = {"model": model_name}
