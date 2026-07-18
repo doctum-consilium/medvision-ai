@@ -184,12 +184,14 @@ def load_registry(artifacts_dir: str | Path = DEFAULT_ARTIFACTS_DIR) -> dict[str
     return registry
 
 
-@lru_cache(maxsize=16)
-def load_onnx_model(model_path: str) -> Any:
-    """Charge un modèle ONNX et retourne une InferenceSession prête pour l'inférence.
+def create_onnx_session(model_path: str) -> Any:
+    """Crée une InferenceSession ONNX SANS mise en cache.
 
-    L'import onnxruntime est différé au premier appel (lazy) pour que l'import
-    du registry reste instantané même si onnxruntime n'est pas installé.
+    C'est la brique de chargement partagée : `load_onnx_model` (Streamlit,
+    cache lru illimité en pratique borné par les 17 modèles) et
+    `OnnxSessionCache` (API, cache LRU borné pour tenir dans les 2 Gi du
+    pod) l'utilisent tous les deux — un seul endroit décide des options
+    de session et des erreurs métier.
 
     Args:
         model_path: Chemin absolu vers le fichier .onnx.
@@ -199,12 +201,7 @@ def load_onnx_model(model_path: str) -> Any:
 
     Raises:
         ModelNotFoundError: Le fichier .onnx est absent — modèle non encore converti.
-            Exécuter scripts/convert_to_onnx.py sur la machine ML, puis dvc push.
         ModelLoadError: Le fichier existe mais la désérialisation a échoué.
-
-    Example:
-        >>> sess = load_onnx_model("artifacts/models/optimized_model.onnx")
-        >>> out = sess.run(None, {sess.get_inputs()[0].name: image_batch})
     """
     # On vérifie l'existence du fichier AVANT d'importer onnxruntime : un modèle
     # absent doit lever ModelNotFoundError SANS dépendre d'onnxruntime (sinon un
@@ -229,6 +226,31 @@ def load_onnx_model(model_path: str) -> Any:
         )
     except Exception as exc:
         raise ModelLoadError(f"{path.name} : {exc}") from exc
+
+
+@lru_cache(maxsize=16)
+def load_onnx_model(model_path: str) -> Any:
+    """Charge un modèle ONNX avec cache (compatibilité Streamlit).
+
+    Wrapper mémoïsé de `create_onnx_session` : l'UI Streamlit garde son
+    comportement historique. L'API, elle, passe par `OnnxSessionCache`
+    (borné) — voir src/api/services/session_cache.py pour le pourquoi.
+
+    Args:
+        model_path: Chemin absolu vers le fichier .onnx.
+
+    Returns:
+        onnxruntime.InferenceSession prêt pour l'inférence CPU.
+
+    Raises:
+        ModelNotFoundError: Le fichier .onnx est absent.
+        ModelLoadError: Le fichier existe mais la désérialisation a échoué.
+
+    Example:
+        >>> sess = load_onnx_model("artifacts/models/optimized_model.onnx")
+        >>> out = sess.run(None, {sess.get_inputs()[0].name: image_batch})
+    """
+    return create_onnx_session(model_path)
 
 
 def get_model_entry(

@@ -1,12 +1,38 @@
+"""API FastAPI de MedVision AI.
+
+Deux surfaces cohabitent pendant la transition Streamlit → Angular :
+
+* les **endpoints historiques** (sans préfixe : /health, /registry, /models,
+  /compare, /predict) — comportement inchangé, consommés par les scripts
+  et tests existants ;
+* l'**API v2** (préfixe /api) — consommée par le front Angular : registre
+  versionné/enrichi, navigateur d'images par sample_id opaque, prédiction
+  multi-modèles avec masques PNG, rapports. Le flux temps réel (/api/events)
+  arrive avec le watcher DVC (PR suivante).
+
+L'état applicatif (registre versionné, cache de sessions ONNX borné,
+index d'images) vit sur `app.state` — instancié par `create_app()`, donc
+substituable dans les tests.
+"""
 from __future__ import annotations
 
+import os
 import tempfile
 from pathlib import Path
 from typing import Any
 
 import numpy as np
 from fastapi import FastAPI, File, HTTPException, Query, UploadFile
+from fastapi.middleware.cors import CORSMiddleware
 
+from src.api.routes import images as images_routes
+from src.api.routes import models as models_routes
+from src.api.routes import predict as predict_routes
+from src.api.routes import problems as problems_routes
+from src.api.routes import reports as reports_routes
+from src.api.services.image_index import ImageIndexService
+from src.api.services.registry_state import RegistryState
+from src.api.services.session_cache import OnnxSessionCache
 from src.preprocessing.image_loader import load_and_preprocess_image
 from src.registry.model_registry import (
     ModelNotFoundError,
@@ -16,7 +42,57 @@ from src.registry.model_registry import (
     load_registry,
 )
 
-app = FastAPI(title="MedVision AI API", version="3.1.0")
+
+def create_app(
+    artifacts_dir: str | Path | None = None,
+    data_root: Path | None = None,
+) -> FastAPI:
+    """Construit l'application FastAPI avec son état applicatif.
+
+    Args:
+        artifacts_dir: Racine des artefacts modèles (surchargée en test).
+        data_root: Racine des datasets pour l'index d'images (test).
+
+    Returns:
+        Application prête à servir (legacy + /api).
+    """
+    app = FastAPI(title="MedVision AI API", version="4.0.0")
+
+    # CORS : vide par défaut (en prod, le nginx du front proxifie /api en
+    # same-origin). Utile uniquement en dev local (ng serve sur :4200).
+    cors_origins = [o for o in os.getenv("MEDVISION_CORS_ORIGINS", "").split(",") if o.strip()]
+    if cors_origins:
+        app.add_middleware(
+            CORSMiddleware,
+            allow_origins=cors_origins,
+            allow_methods=["*"],
+            allow_headers=["*"],
+        )
+
+    app.state.registry_state = RegistryState(
+        artifacts_dir if artifacts_dir is not None else "artifacts"
+    )
+    app.state.session_cache = OnnxSessionCache(
+        max_sessions=int(os.getenv("MEDVISION_MAX_SESSIONS", "3"))
+    )
+    app.state.image_index = ImageIndexService(root=data_root)
+
+    # Tous les routers v2 partagent le préfixe /api — le nginx du front
+    # Angular proxifie ce préfixe vers ce service.
+    for router_module in (problems_routes, models_routes, images_routes, predict_routes, reports_routes):
+        app.include_router(router_module.router, prefix="/api")
+
+    @app.get("/api/health")
+    def api_health() -> dict[str, str | None]:
+        """Sonde de vie v2 : expose aussi la version du registre."""
+        return {
+            "status": "ok",
+            "registry_version": app.state.registry_state.version,
+            "watcher": "disabled",  # activé par la PR watcher/SSE
+        }
+
+    _register_legacy_routes(app)
+    return app
 
 
 def _run_onnx(session: Any, image: np.ndarray) -> dict[str, np.ndarray]:
@@ -68,7 +144,7 @@ def _predict_with_entry(model_entry: dict[str, Any], image_path: Path, image_siz
     Args:
         model_entry: Entrée du registre (model_path, class_names, task_type...).
         image_path: Chemin vers l'image à analyser.
-        image_size: Taille de redimensionnement (224 pour classification, 256 pour segmentation).
+        image_size: Taille de redimensionnement (224 classification, 256 segmentation).
 
     Returns:
         Dict avec predicted_class, confidence, probabilities, et optionnellement mask_*.
@@ -107,78 +183,87 @@ def _predict_with_entry(model_entry: dict[str, Any], image_path: Path, image_siz
     return _classification_payload(cls_output, model_entry)
 
 
-@app.get("/health")
-def health() -> dict[str, str]:
-    return {"status": "ok"}
+def _register_legacy_routes(app: FastAPI) -> None:
+    """Enregistre les endpoints historiques (comportement inchangé).
 
-
-@app.get("/registry")
-def registry() -> dict[str, Any]:
-    return load_registry()
-
-
-@app.get("/models")
-def list_models(problem: str | None = Query(default=None)) -> dict[str, Any]:
-    reg = load_registry()
-    if problem:
-        if problem not in reg["problems"]:
-            raise HTTPException(status_code=404, detail=f"Unknown problem: {problem}")
-        return reg["problems"][problem]
-    return reg
-
-
-@app.get("/compare")
-def compare(problem: str = Query(..., description="Problem id")) -> dict[str, Any]:
-    try:
-        return {"problem": problem, "rows": compare_models(problem)}
-    except KeyError as exc:
-        raise HTTPException(status_code=404, detail=str(exc)) from exc
-
-
-@app.post("/predict")
-async def predict(
-    file: UploadFile = File(...),
-    problem: str = Query(..., description="Problem id"),
-    model_name: str = Query(..., description="Model id"),
-) -> dict[str, Any]:
-    """Prédit la classe et la confiance à partir d'une image médicale.
-
-    Args:
-        file: Image à analyser (PNG, JPG, TIFF…).
-        problem: Identifiant du problème (chest_xray, brain_mri…).
-        model_name: Identifiant du modèle dans le registre.
-
-    Returns:
-        Dict avec problem, model_name, predicted_class, confidence, probabilities, model_metadata.
+    Conservés tels quels le temps de la coexistence Streamlit/Angular :
+    les sondes k8s (/health) et les scripts existants les consomment.
     """
-    if not file.filename:
-        raise HTTPException(status_code=400, detail="No file provided")
 
-    try:
-        model_entry = get_model_entry(problem, model_name)
-    except KeyError as exc:
-        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    @app.get("/health")
+    def health() -> dict[str, str]:
+        return {"status": "ok"}
 
-    suffix = Path(file.filename).suffix or ".png"
-    with tempfile.NamedTemporaryFile(delete=False, suffix=suffix) as tmp:
-        content = await file.read()
-        tmp.write(content)
-        tmp_path = Path(tmp.name)
+    @app.get("/registry")
+    def registry() -> dict[str, Any]:
+        return load_registry()
 
-    try:
-        result = _predict_with_entry(
-            model_entry,
-            tmp_path,
-            image_size=256 if "segmentation" in problem else 224,
-        )
-        return {
-            "problem": problem,
-            "model_name": model_name,
-            **result,
-            "model_metadata": {
-                "metrics": model_entry.get("metrics", {}),
-                "model_path": model_entry["model_path"],
-            },
-        }
-    finally:
-        tmp_path.unlink(missing_ok=True)
+    @app.get("/models")
+    def list_models(problem: str | None = Query(default=None)) -> dict[str, Any]:
+        reg = load_registry()
+        if problem:
+            if problem not in reg["problems"]:
+                raise HTTPException(status_code=404, detail=f"Unknown problem: {problem}")
+            return reg["problems"][problem]
+        return reg
+
+    @app.get("/compare")
+    def compare(problem: str = Query(..., description="Problem id")) -> dict[str, Any]:
+        try:
+            return {"problem": problem, "rows": compare_models(problem)}
+        except KeyError as exc:
+            raise HTTPException(status_code=404, detail=str(exc)) from exc
+
+    @app.post("/predict")
+    async def predict(
+        file: UploadFile = File(...),
+        problem: str = Query(..., description="Problem id"),
+        model_name: str = Query(..., description="Model id"),
+    ) -> dict[str, Any]:
+        """Prédit la classe et la confiance à partir d'une image médicale.
+
+        Args:
+            file: Image à analyser (PNG, JPG, TIFF…).
+            problem: Identifiant du problème (chest_xray, brain_mri…).
+            model_name: Identifiant du modèle dans le registre.
+
+        Returns:
+            Dict avec problem, model_name, predicted_class, confidence,
+            probabilities, model_metadata.
+        """
+        if not file.filename:
+            raise HTTPException(status_code=400, detail="No file provided")
+
+        try:
+            model_entry = get_model_entry(problem, model_name)
+        except KeyError as exc:
+            raise HTTPException(status_code=404, detail=str(exc)) from exc
+
+        suffix = Path(file.filename).suffix or ".png"
+        with tempfile.NamedTemporaryFile(delete=False, suffix=suffix) as tmp:
+            content = await file.read()
+            tmp.write(content)
+            tmp_path = Path(tmp.name)
+
+        try:
+            result = _predict_with_entry(
+                model_entry,
+                tmp_path,
+                image_size=256 if "segmentation" in problem else 224,
+            )
+            return {
+                "problem": problem,
+                "model_name": model_name,
+                **result,
+                "model_metadata": {
+                    "metrics": model_entry.get("metrics", {}),
+                    "model_path": model_entry["model_path"],
+                },
+            }
+        finally:
+            tmp_path.unlink(missing_ok=True)
+
+
+# Application par défaut (uvicorn src.api.main:app) — la prod et le
+# docker-compose pointent dessus.
+app = create_app()
