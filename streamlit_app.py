@@ -23,7 +23,13 @@ from src.datasets.sample_browser import (
     recommended_samples as _recommended_samples,
 )
 from src.preprocessing.image_loader import load_and_preprocess_image
-from src.registry.model_registry import compare_models, get_model_entry, load_onnx_model, load_registry
+from src.registry.model_registry import (
+    compare_models,
+    format_model_input,
+    get_model_entry,
+    load_onnx_model,
+    load_registry,
+)
 
 
 def _load_preview_image(path: Path) -> np.ndarray | None:
@@ -99,7 +105,8 @@ def _run_onnx(session: Any, image: np.ndarray) -> dict[str, np.ndarray]:
         mono-tête (classification) comme multi-têtes (segmentation + classification).
     """
     input_name = session.get_inputs()[0].name
-    x = image.astype(np.float32)[np.newaxis, ...]  # (1, H, W, C)
+    # NHWC (Keras) ou NCHW (PyTorch) : le layout attendu est lu sur la session.
+    x = format_model_input(session, image)
     out_names = [o.name for o in session.get_outputs()]
     outputs = session.run(None, {input_name: x})
     return dict(zip(out_names, outputs, strict=True))

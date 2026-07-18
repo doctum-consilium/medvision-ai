@@ -48,18 +48,29 @@ def app_env(tmp_path: Path):
 
 
 class _FakeSession:
-    """Session ONNX factice : rejoue les formes de sortie des vrais modèles."""
+    """Session ONNX factice : rejoue les formes de sortie des vrais modèles.
 
-    def __init__(self, outputs: dict[str, np.ndarray]) -> None:
+    Args:
+        outputs: Sorties simulées {nom: array}.
+        input_shape: Forme d'entrée déclarée (NHWC par défaut, NCHW pour
+            simuler un export PyTorch).
+    """
+
+    def __init__(
+        self, outputs: dict[str, np.ndarray], input_shape: list | None = None
+    ) -> None:
         self._outputs = outputs
+        self._input_shape = input_shape or [1, 224, 224, 3]
+        self.received_feeds: list[dict] = []
 
     def get_inputs(self):
-        return [SimpleNamespace(name="input")]
+        return [SimpleNamespace(name="input", shape=self._input_shape)]
 
     def get_outputs(self):
         return [SimpleNamespace(name=name) for name in self._outputs]
 
-    def run(self, _names, _feed):
+    def run(self, _names, feed):
+        self.received_feeds.append(feed)
         return list(self._outputs.values())
 
 
@@ -274,6 +285,51 @@ def test_api_predict_from_dataset_sample(app_env, monkeypatch) -> None:
     body = resp.json()
     assert body["image"] == {"source": "dataset", "sample_id": sample_id}
     assert body["results"][0]["predicted_class"] == "NORMAL"
+
+
+def test_format_model_input_layouts() -> None:
+    """NHWC pour Keras, NCHW pour les exports PyTorch (lu sur la session).
+
+    Verrouille l'incident 2026-07-18 : les 3 modèles torch échouaient en
+    INVALID_ARGUMENT car l'app envoyait du NHWC à des modèles NCHW.
+    """
+    from src.registry.model_registry import format_model_input
+
+    image = np.zeros((224, 224, 3), dtype=np.float32)
+
+    keras_session = _FakeSession({}, input_shape=[1, 224, 224, 3])
+    assert format_model_input(keras_session, image).shape == (1, 224, 224, 3)
+
+    torch_session = _FakeSession({}, input_shape=[1, 3, 224, 224])
+    assert format_model_input(torch_session, image).shape == (1, 3, 224, 224)
+
+    # Dimension batch symbolique (chaîne) : le layout reste détecté.
+    torch_dyn = _FakeSession({}, input_shape=["batch", 3, 224, 224])
+    assert format_model_input(torch_dyn, image).shape == (1, 3, 224, 224)
+
+
+def test_api_predict_transposes_for_torch_models(app_env, monkeypatch) -> None:
+    """Bout en bout : un modèle NCHW reçoit bien un batch transposé."""
+    _, client, _ = app_env
+    session = _FakeSession(
+        {"output": np.array([[0.1, 0.2, 0.6, 0.1]], dtype=np.float32)},
+        input_shape=[1, 3, 224, 224],
+    )
+
+    def _fake(path: str):
+        if not Path(path).exists():
+            raise ModelNotFoundError(f"{Path(path).name} introuvable.")
+        return session
+
+    monkeypatch.setattr("src.api.services.session_cache.create_onnx_session", _fake)
+
+    resp = client.post(
+        "/api/predict",
+        data={"problem": "chest_xray", "model_names": ["optimized"]},
+        files={"file": ("scan.png", _png_bytes(), "image/png")},
+    )
+    assert resp.status_code == 200
+    assert session.received_feeds[0]["input"].shape == (1, 3, 224, 224)
 
 
 # ── Rapports ───────────────────────────────────────────────────────────────

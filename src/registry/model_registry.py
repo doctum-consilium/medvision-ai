@@ -184,6 +184,40 @@ def load_registry(artifacts_dir: str | Path = DEFAULT_ARTIFACTS_DIR) -> dict[str
     return registry
 
 
+def format_model_input(session: Any, image: Any) -> Any:
+    """Adapte une image prétraitée (H, W, C) au layout d'entrée du modèle.
+
+    Les modèles Keras exportés via tf2onnx attendent du NHWC (1, H, W, C) ;
+    les modèles PyTorch exportés via torch.onnx attendent du NCHW
+    (1, C, H, W). Sans cette adaptation, les 3 modèles torch du registre
+    échouaient en INVALID_ARGUMENT (« Got 224 Expected 3 ») — incident
+    2026-07-18. On lit la forme déclarée par la session : si la dimension 1
+    vaut 3 (canaux) et la dernière non, le modèle est channels-first.
+
+    Args:
+        session: onnxruntime.InferenceSession chargée.
+        image: Image prétraitée (H, W, C) float.
+
+    Returns:
+        Batch (1, H, W, C) ou (1, C, H, W) selon le modèle, float32.
+    """
+    import numpy as np  # noqa: PLC0415 — évite d'alourdir l'import du module
+
+    x = np.asarray(image, dtype=np.float32)[np.newaxis, ...]  # (1, H, W, C)
+    # Forme déclarée, ex. [1, 3, 224, 224] (torch) ou [1, 224, 224, 3] (Keras).
+    # Certains modèles n'en déclarent pas : on garde alors le NHWC historique.
+    shape = getattr(session.get_inputs()[0], "shape", None) or []
+    channels_first = (
+        len(shape) == 4
+        and isinstance(shape[1], int)
+        and shape[1] == 3
+        and shape[-1] != 3
+    )
+    if channels_first:
+        x = np.transpose(x, (0, 3, 1, 2))
+    return x
+
+
 def create_onnx_session(model_path: str) -> Any:
     """Crée une InferenceSession ONNX SANS mise en cache.
 
@@ -228,7 +262,11 @@ def create_onnx_session(model_path: str) -> Any:
         raise ModelLoadError(f"{path.name} : {exc}") from exc
 
 
-@lru_cache(maxsize=16)
+# maxsize=3 (et pas 16) : chaque InferenceSession pèse jusqu'à ~350 Mo ;
+# à 16 sessions le pod Streamlit (limite 2 Gi) partait en OOMKilled dès
+# qu'on comparait plusieurs modèles (incident 2026-07-18, exit 137 en
+# boucle → 503). Même borne que l'OnnxSessionCache de l'API.
+@lru_cache(maxsize=3)
 def load_onnx_model(model_path: str) -> Any:
     """Charge un modèle ONNX avec cache (compatibilité Streamlit).
 

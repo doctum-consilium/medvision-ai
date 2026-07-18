@@ -18,6 +18,7 @@ from PIL import Image
 
 from src.api.services.session_cache import OnnxSessionCache
 from src.preprocessing.image_loader import load_and_preprocess_image
+from src.registry.model_registry import format_model_input
 
 
 def run_onnx(session: Any, image: np.ndarray) -> dict[str, np.ndarray]:
@@ -32,7 +33,8 @@ def run_onnx(session: Any, image: np.ndarray) -> dict[str, np.ndarray]:
         multi-têtes (segmentation + classification).
     """
     input_name = session.get_inputs()[0].name
-    x = image.astype(np.float32)[np.newaxis, ...]  # (1, H, W, C)
+    # NHWC (Keras) ou NCHW (PyTorch) : le layout est lu sur la session.
+    x = format_model_input(session, image)
     out_names = [o.name for o in session.get_outputs()]
     outputs = session.run(None, {input_name: x})
     return dict(zip(out_names, outputs, strict=True))
