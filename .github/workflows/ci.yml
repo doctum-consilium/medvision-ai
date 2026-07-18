@@ -98,6 +98,11 @@ jobs:
         # pour ne pas exiger l'impossible sans rabaisser le seuil global. Le motif '*/models/*'
         # est requis car diff-cover préfixe les chemins ('src/models/*' ne matche pas).
         #
+        # --exclude '*/segmentation/*' '*/training/*' : même logique — TOUS les modules de
+        # src/segmentation (data.py, models/) et src/training importent TensorFlow au niveau
+        # module, donc 0 % dans cette suite sans TF. Leur couverture reste exigée par le
+        # gate diff-cover du job test-tf, qui lui tourne SANS exclusion.
+        #
         # --ignore-staged --ignore-unstaged : ne juger QUE le code commité (origin/main...HEAD).
         # Sans ces flags, diff-cover inclut « staged and unstaged changes » du working tree du
         # runner. Or .gitattributes impose eol=lf alors que des fichiers historiques sont encore
@@ -108,7 +113,7 @@ jobs:
           diff-cover coverage-smoke.xml \
             --compare-branch=origin/main \
             --fail-under=80 \
-            --exclude '*/models/*' \
+            --exclude '*/models/*' '*/segmentation/*' '*/training/*' \
             --ignore-staged --ignore-unstaged
 
       - name: Archiver le rapport de couverture
