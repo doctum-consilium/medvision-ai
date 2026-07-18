@@ -1,6 +1,23 @@
 # MedVision AI — PR #10 + 17 modèles en prod + refonte Angular réactive
 
-> À dupliquer dans `docs/plans/2026-07-18-medvision-pr10-refonte-angular.md` (repo medvision-ai) avant implémentation.
+> **État au 2026-07-18 (fin de session) — LIVRÉ EN PARTIE.**
+>
+> **Chantier 1 (PR #10 → les 17 modèles en production) : livré intégralement**, et
+> au-delà du plan initial — cinq causes racines imprévues ont dû être corrigées en
+> chemin (dépendance DVC, stockage éphémère, écrasement des modèles, format d'entrée
+> PyTorch, saturation mémoire). Voir `2026-07-18-handoff-medvision.md`.
+>
+> **Chantier 2 (front Angular) : arrêté au socle.** Le squelette, le design system, les
+> libellés et les types sont commités sur la branche locale `feat/front-socle-angular`
+> (non poussée) ; aucun écran n'est branché, rien n'est déployé.
+>
+> **Deux décisions produit prises en cours de route, qui modifient ce plan :** les deux
+> modèles `convnexttiny` sont désactivés (export ONNX invalide) et les problèmes de
+> segmentation ne posent plus aucun diagnostic (leur tête de classification était
+> trompeuse). L'écran « studio » du front devra respecter cette seconde règle.
+>
+> **Pour reprendre : lire `docs/plans/2026-07-18-handoff-medvision.md`**, qui contient
+> l'état exact, la marche à suivre et les dettes ouvertes.
 
 ## Context
 

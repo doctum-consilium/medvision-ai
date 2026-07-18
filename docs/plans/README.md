@@ -4,6 +4,8 @@
 |---|---|---|
 | [2026-06-15-medvision-fix-registry-data.md](2026-06-15-medvision-fix-registry-data.md) | Fix registry (modèles orphelins) + génération samples | Livré 2026-06-15 |
 | [2026-06-15-medvision-pipeline-dvc-ecr.md](2026-06-15-medvision-pipeline-dvc-ecr.md) | Architecture DVC+S3 + entrypoint + guide entraînement local | Livré 2026-06-15 |
+| [2026-07-18-medvision-pr10-refonte-angular.md](2026-07-18-medvision-pr10-refonte-angular.md) | PR #10 débloquée + 17 modèles en prod + refonte Angular | Livré en partie 2026-07-18 (front au socle) |
+| [2026-07-18-handoff-medvision.md](2026-07-18-handoff-medvision.md) | **Point de reprise** : état prod, causes racines, dettes, marche à suivre | À suivre |
 
 ## Résumé de ce qui a été livré (2026-06-15)
 

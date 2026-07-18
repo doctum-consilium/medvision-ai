@@ -1,10 +1,65 @@
 # ROADMAP
 
 ## Last Update
-2026-06-28 (portabilité poste-à-poste : envs, CUDA, install script)
+2026-07-18 (les 17 modèles en production, API v2 + temps réel, segmentation pure)
 
 ## Active Phase
-Phase 2 — Pipeline DVC+S3 + entraînement local reproductible
+Phase 3 — Nouvelle interface (Angular) et portail de documentation
+
+## Execution Log — 2026-07-18
+
+### Phase 3a — Les 17 modèles en production, API v2 et segmentation pure
+
+**Point de départ.** Les 17 modèles entraînés et poussés dans S3 via DVC n'apparaissaient
+pas dans l'interface : elle n'en proposait que 4. Le diagnostic a mis au jour cinq causes
+racines enchaînées, toutes corrigées et déployées dans la journée.
+
+**Ce qui bloquait, et pourquoi.**
+
+1. L'extra `dvc[gdrive]` tirait PyDrive2, qui fige pyOpenSSL en 22.0.0. Le rebuild ayant
+   résolu un cryptography récent, tout accès S3 de DVC plantait et les pods démarraient
+   sans aucun modèle. Le remote du projet étant S3 seul, l'extra a été retiré.
+2. Les 17 modèles plus le cache DVC dépassent les 2 Gi de stockage éphémère alloués : les
+   pods étaient évincés en boucle. La limite passe à 6 Gi et, surtout, les modèles
+   déménagent sur un volume persistant — ils survivent désormais à un crash au lieu
+   d'être re-téléchargés à chaque démarrage.
+3. Sur ce volume, `dvc pull` refusait d'écraser des fichiers qu'il jugeait non
+   sauvegardés, d'où quatre modèles seulement. L'option `--force` a été ajoutée : le pod
+   est une copie jetable de la vérité S3.
+4. Les trois modèles PyTorch échouaient parce que `torch.onnx` exporte en canaux-d'abord
+   quand l'application envoyait toujours du canaux-en-dernier. Un helper lit désormais la
+   forme d'entrée déclarée par le modèle et transpose si nécessaire.
+5. L'interface tombait en 503 : son cache de sessions ONNX autorisait 16 modèles en
+   mémoire (environ 350 Mo chacun) dans un pod limité à 2 Gi. Il est ramené à 3.
+
+**Ce qui a été livré en plus.** La PR #10, bloquée par quatre vérifications rouges, a été
+débloquée et fusionnée — c'est elle qui apportait le pipeline des 17 modèles. Une **API v2**
+(préfixe `/api`) a été construite pour la future interface : registre versionné, navigateur
+d'images par identifiants opaques (aucun chemin disque n'est exposé ni interprété),
+prédiction multi-modèles renvoyant les masques en PNG (le seuil se change côté client sans
+ré-inférence), rapports. Un **watcher DVC** accompagné d'un flux temps réel permet
+désormais qu'un modèle poussé apparaisse sans redéploiement ; il reste désactivé par
+défaut, à activer sur décision.
+
+**Deux décisions produit.** Les deux variantes `convnexttiny` sont retirées du registre :
+leur fichier ONNX est invalide dès l'export (bug tf2onnx sur ConvNeXt), elles affichaient
+une erreur à chaque analyse. Et les deux problèmes de segmentation ne posent plus de
+diagnostic : leur tête de classification annonçait NORMAL avec une confiance de 1,000 sur
+des pneumonies manifestes. Ces écrans délimitent des zones, un point c'est tout — les
+libellés, l'inférence et l'affichage ont été alignés sur cette promesse.
+
+**Vérifications.** Intégration locale verte à chaque étape (ruff, tests smoke, couverture
+du diff supérieure à 80 %, shellcheck, guardrails) ; état de production contrôlé
+directement dans les pods après chaque déploiement.
+
+**Images déployées** : `medvision-ai:2026-07-18e` (api, streamlit, mlflow).
+
+**Fusions** : medvision-ai #10 à #17 ; k3s-fromOVHVps #30 et #32.
+
+**Hors périmètre.** L'interface Angular s'arrête au socle (branche locale
+`feat/front-socle-angular`, rien de déployé) ; le portail de documentation privé n'est pas
+commencé ; aucun modèle n'a été ré-entraîné. Détail complet et marche à suivre :
+`docs/plans/2026-07-18-handoff-medvision.md`.
 
 ## Goals
 - Maintain service availability
