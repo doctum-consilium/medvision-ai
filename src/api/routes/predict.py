@@ -16,7 +16,7 @@ from typing import Any
 from fastapi import APIRouter, File, Form, HTTPException, Request, UploadFile
 
 from src.api.services.inference import predict_with_entry
-from src.registry.model_registry import ModelNotFoundError, best_available_model
+from src.registry.model_registry import ModelNotFoundError
 
 router = APIRouter()
 
@@ -111,37 +111,8 @@ async def predict(
                 )
                 continue
             results.append({"model_name": model_name, **payload})
-        # Second avis : la tête de classification des U-Net multitâches est
-        # faible — sur les problèmes de segmentation, on joint le verdict du
-        # meilleur classifieur dédié du problème frère. Jamais bloquant.
-        second_opinion = None
-        companion = state.registry()["problems"][problem].get("companion_problem")
-        if companion and any("segmentation" in r for r in results):
-            try:
-                best = best_available_model(companion, registry=state.registry())
-                if best is not None:
-                    companion_model, companion_entry = best
-                    payload = predict_with_entry(
-                        companion_entry,
-                        predict_path,
-                        session_cache=request.app.state.session_cache,
-                    )
-                    second_opinion = {
-                        "problem": companion,
-                        "model_name": companion_model,
-                        "predicted_class": payload["predicted_class"],
-                        "confidence": payload["confidence"],
-                        "probabilities": payload["probabilities"],
-                    }
-            except Exception:  # le second avis ne casse jamais l'analyse
-                second_opinion = None
     finally:
         if tmp_path is not None:
             tmp_path.unlink(missing_ok=True)
 
-    return {
-        "problem": problem,
-        "image": image_info,
-        "results": results,
-        "second_opinion": second_opinion,
-    }
+    return {"problem": problem, "image": image_info, "results": results}

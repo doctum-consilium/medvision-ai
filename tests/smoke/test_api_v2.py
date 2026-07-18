@@ -259,7 +259,9 @@ def test_api_predict_segmentation_returns_probability_png(app_env, monkeypatch) 
     )
     assert resp.status_code == 200
     result = resp.json()["results"][0]
-    assert result["predicted_class"] == "glioma"
+    # Segmentation pure : aucun diagnostic, même si le modèle a une tête de
+    # classification (cf. tests/smoke/test_segmentation_pure.py).
+    assert "predicted_class" not in result
     segmentation = result["segmentation"]
     assert segmentation["threshold"] == pytest.approx(0.5)
     assert 0.0 < segmentation["mask_foreground_ratio"] < 1.0

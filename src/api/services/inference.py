@@ -100,7 +100,7 @@ def predict_with_entry(
     """
     task_type = model_entry["task_type"]
     class_names = model_entry["class_names"]
-    is_segmentation = task_type == "segmentation_multitask"
+    is_segmentation = task_type == "segmentation"
     if image_size is None:
         image_size = 256 if is_segmentation else 224
 
@@ -110,22 +110,14 @@ def predict_with_entry(
     out_names = list(raw.keys())
 
     if is_segmentation:
-        # tf2onnx préserve les noms de couches Keras ; fallback sur l'index si absent.
+        # Segmentation PURE : le modèle possède aussi une tête de
+        # classification, mais elle est trop peu fiable pour être exposée
+        # (incident 2026-07-18) — on ne lit QUE la sortie de segmentation.
+        # tf2onnx préserve les noms de couches Keras ; fallback sur l'index.
         seg_key = next((k for k in out_names if "seg" in k.lower()), out_names[0])
-        cls_key = next(
-            (k for k in out_names if "class" in k.lower() or "cls" in k.lower()),
-            out_names[-1],
-        )
         seg = raw[seg_key][0, ..., 0].astype(np.float32)
-        cls_raw = raw[cls_key][0]
-        effective_type = "binary" if len(class_names) == 2 else "multiclass"
-        probs = _classification_probs(cls_raw, class_names, effective_type)
-        predicted = max(probs.items(), key=lambda item: item[1])[0]
         mask = (seg >= mask_threshold).astype(np.float32)
         return {
-            "predicted_class": predicted,
-            "confidence": float(max(probs.values())),
-            "probabilities": probs,
             "metrics": model_entry.get("metrics", {}),
             "segmentation": {
                 "mask_prob_png": _grayscale_png_b64(seg),
