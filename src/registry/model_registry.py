@@ -262,7 +262,11 @@ def create_onnx_session(model_path: str) -> Any:
         raise ModelLoadError(f"{path.name} : {exc}") from exc
 
 
-@lru_cache(maxsize=16)
+# maxsize=3 (et pas 16) : chaque InferenceSession pèse jusqu'à ~350 Mo ;
+# à 16 sessions le pod Streamlit (limite 2 Gi) partait en OOMKilled dès
+# qu'on comparait plusieurs modèles (incident 2026-07-18, exit 137 en
+# boucle → 503). Même borne que l'OnnxSessionCache de l'API.
+@lru_cache(maxsize=3)
 def load_onnx_model(model_path: str) -> Any:
     """Charge un modèle ONNX avec cache (compatibilité Streamlit).
 
