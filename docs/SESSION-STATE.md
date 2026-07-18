@@ -7,7 +7,7 @@ Point de reprise canonique. Mis à jour à chaque session significative.
 
 ## 🤝 HANDOFF 2026-07-18 — Les 17 modèles en production + API v2 + segmentation pure (DÉPLOYÉ)
 
-> **Image prod : `medvision-ai:2026-07-18e`** (api, streamlit et mlflow).
+> **Image prod : `medvision-ai:2026-07-18f`** (api, streamlit et mlflow).
 > Plan détaillé de reprise : **`docs/plans/2026-07-18-handoff-medvision.md`** — le lire
 > avant de reprendre le chantier.
 
@@ -80,9 +80,12 @@ Streamlit reste la seule interface en service.
 
 - **`convnexttiny` à ré-exporter** sur le PC ML puis `dvc push`. **Jamais d'entraînement
   sur les VPS k3s** (consigne : ils font tourner toute la production).
-- **Images du dataset de segmentation cérébrale** : le navigateur montre des images
-  bruitées ou synthétiques — le PVC `medvision-raw-data` n'a pas les vraies images pour
-  ce problème.
+- ~~Images du dataset de segmentation cérébrale~~ — **RÉSOLU** (image `2026-07-18f`).
+  Les 12 fichiers du dossier venaient tous de `scripts/generate_sample_images.py`
+  (bouche-trous de développement copiés sur le volume en juin) ; trois autres traînaient
+  dans chaque classe du dossier des IRM. Ils sont désormais reconnus à leur nom et
+  écartés du navigateur, et la segmentation cérébrale se rabat sur les IRM du problème
+  frère — même corpus, déjà présentes sur le volume (400 vraies IRM par classe).
 - **Rapports de classification absents du pod** : seul le stage ONNX est tiré au
   démarrage, donc `/api/reports` renvoie `classification_report: null`.
 - **34 fichiers encore en CRLF** dans l'historique git (les 4 qui bloquaient les
