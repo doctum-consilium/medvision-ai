@@ -22,7 +22,11 @@ if [ -n "${AWS_ACCESS_KEY_ID:-}" ] && [ -n "${AWS_SECRET_ACCESS_KEY:-}" ]; then
     # registry (6 chest + 6 brain_mri Keras + 3 PyTorch + 2 segmentations). Les
     # stages d'entraînement (.keras/.pt) ne sont pas tirés en prod — l'entraînement
     # se fait sur machine ML (dvc repro), pas dans le pod.
-    if dvc pull convert_to_onnx --no-run-cache > /tmp/dvc-pull.log 2>&1; then
+    # --force : les modèles vivent sur un PVC partagé ; quand un hash change
+    # côté S3, DVC refuse d'écraser les fichiers « unsaved » du volume sans
+    # confirmation (incident 2026-07-18 : pods bloqués à 4 modèles). Le pod
+    # est une copie jetable de la vérité S3 — l'écrasement est TOUJOURS voulu.
+    if dvc pull convert_to_onnx --no-run-cache --force > /tmp/dvc-pull.log 2>&1; then
         cat /tmp/dvc-pull.log
         echo "[entrypoint] Artefacts récupérés depuis S3."
     else
