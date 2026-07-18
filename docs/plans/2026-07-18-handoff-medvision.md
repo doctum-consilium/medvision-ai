@@ -121,9 +121,11 @@ chaque `dvc push` (il publie le `dvc.lock` frais dans S3). À activer quand Yann
   `INVALID_GRAPH` sur le bloc depthwise). Ré-exporter sur le PC ML puis `dvc push` ;
   réactivation = décommenter 3 lignes dans `src/registry/model_registry.py` (laissées en
   place avec la raison). **Aucun entraînement sur les VPS k3s** (consigne Yann).
-- **Images du dataset de segmentation cérébrale** : le navigateur montre des images
-  bruitées/synthétiques → le PVC `medvision-raw-data` n'a pas les vraies images pour ce
-  problème. À re-peupler.
+- ~~Images du dataset de segmentation cérébrale~~ — **RÉSOLU dans `2026-07-18f`** (PR #19).
+  Racine : `scripts/generate_sample_images.py` avait déposé 12 PNG synthétiques qui
+  constituaient TOUT le dossier de segmentation cérébrale (+ 3 par classe dans les IRM).
+  Ils sont filtrés par nom (`looks_like_generated_sample`) et la segmentation cérébrale
+  se rabat sur `data/raw/brain_tumor_mri` (400 vraies IRM/classe, déjà sur le volume).
 - **Rapports de classification absents en pod** : l'entrypoint ne tire que le stage ONNX,
   pas `artifacts/reports/` → `/api/reports` renvoie `classification_report: null`.
 - **Dette EOL** : 34 fichiers ont encore un blob CRLF (les 4 qui bloquaient les bascules
