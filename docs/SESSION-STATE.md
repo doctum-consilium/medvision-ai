@@ -5,6 +5,102 @@ Point de reprise canonique. Mis à jour à chaque session significative.
 
 ---
 
+## 🤝 HANDOFF 2026-07-18 — Les 17 modèles en production + API v2 + segmentation pure (DÉPLOYÉ)
+
+> **Image prod : `medvision-ai:2026-07-18e`** (api, streamlit et mlflow).
+> Plan détaillé de reprise : **`docs/plans/2026-07-18-handoff-medvision.md`** — le lire
+> avant de reprendre le chantier.
+
+### État vérifié en production à la clôture
+
+| Problème | Type de tâche | Modèles disponibles |
+|---|---|---|
+| Chest X-ray Pneumonia Classification | binary | 5/5 |
+| Brain MRI Tumor Classification | multiclass | 8/8 |
+| Brain Tumor Segmentation | segmentation | 1/1 |
+| Chest X-ray Lung Segmentation | segmentation | 1/1 |
+
+17 modèles ONNX sur PVC persistant, aucun pod en erreur.
+
+### Le fil de la session
+
+Le point de départ était simple : les 17 modèles entraînés et poussés dans S3 via DVC
+n'apparaissaient pas dans l'interface. Le diagnostic a mis au jour **cinq causes racines
+enchaînées**, toutes corrigées et déployées.
+
+1. **Zéro modèle en production.** L'extra `dvc[gdrive]` tirait PyDrive2, qui fige
+   pyOpenSSL en 22.0.0 ; le rebuild ayant résolu cryptography 49, tout accès S3 de DVC
+   plantait (`module 'lib' has no attribute 'GEN_EMAIL'`). Le remote du projet est S3
+   seul : l'extra a été retiré. C'est la différence d'environnement entre le PC
+   d'entraînement et l'image Docker qui avait déclenché la panne.
+2. **Pods évincés en boucle.** Les 17 modèles plus le cache DVC pèsent environ 2,4 Go,
+   au-delà de la limite de stockage éphémère de 2 Gi. Limite portée à 6 Gi, **et**
+   surtout les modèles déménagés sur le PVC `medvision-model-artifacts` : ils survivent
+   désormais à un crash de pod au lieu d'être re-téléchargés à chaque démarrage.
+3. **Quatre modèles au lieu de dix-sept.** Sur le PVC, `dvc pull` refusait d'écraser des
+   fichiers qu'il considérait comme « non sauvegardés ». `--force` ajouté dans
+   l'entrypoint et dans le watcher : le pod est une copie jetable de la vérité S3.
+4. **Les trois modèles PyTorch en erreur.** `torch.onnx` exporte en canaux-d'abord
+   (NCHW) alors que l'application envoyait systématiquement du NHWC. Nouveau helper
+   `format_model_input()` : il lit la forme d'entrée déclarée par la session ONNX et
+   transpose si besoin.
+5. **503 et OOMKilled en cascade.** Le cache de sessions ONNX de Streamlit était borné à
+   16 entrées (~350 Mo chacune) dans un pod à 2 Gi. Ramené à 3, aligné sur le cache LRU
+   de l'API.
+
+### Livré en plus des correctifs
+
+- **PR #10 débloquée** : les quatre vérifications rouges de la chaîne d'intégration
+  (guardrails, registre des backbones, couverture) réparées, puis fusionnée — c'est elle
+  qui apportait le pipeline des 17 modèles.
+- **API v2 (préfixe `/api`)** : registre versionné et enrichi, navigateur d'images par
+  identifiants opaques (aucun chemin disque n'est jamais exposé ni interprété),
+  `POST /api/predict` multi-modèles avec masques en PNG base64 (le seuil se change côté
+  client sans ré-inférence), rapports. Les endpoints historiques restent inchangés.
+- **Watcher DVC + flux temps réel (SSE)** : `scripts/publish_model_manifest.sh` publie le
+  `dvc.lock` frais après un `dvc push` ; le serveur le détecte (ETag S3 toutes les 60 s),
+  tire les modèles et prévient l'interface. **Désactivé par défaut**
+  (`MEDVISION_WATCH_ENABLED`), à activer quand tu le décides.
+- **`convnexttiny` (les 2 variantes) désactivés** : leur ONNX est invalide dès l'export
+  (bug tf2onnx/ConvNeXt). Réactivation = décommenter 3 lignes dans
+  `src/registry/model_registry.py`, après ré-export sur le PC ML.
+- **Segmentation pure** : la tête de classification des U-Net annonçait NORMAL avec une
+  confiance de 1,000 sur des pneumonies manifestes. Décision produit : ces deux écrans
+  délimitent des zones et ne posent **aucun** diagnostic. Type de tâche passé à
+  `segmentation`, libellés sans mention de classification, tête ni exécutée ni affichée.
+
+### Ce qui est en cours (non poussé)
+
+Le **socle du front Angular** est commité sur la branche locale
+`feat/front-socle-angular` (commit `ae34461`) : Angular 19, design system maison,
+libellés français centralisés, types miroir de l'API. Rien n'est branché ni déployé —
+Streamlit reste la seule interface en service.
+
+### Dettes ouvertes (ce ne sont pas des régressions)
+
+- **`convnexttiny` à ré-exporter** sur le PC ML puis `dvc push`. **Jamais d'entraînement
+  sur les VPS k3s** (consigne : ils font tourner toute la production).
+- **Images du dataset de segmentation cérébrale** : le navigateur montre des images
+  bruitées ou synthétiques — le PVC `medvision-raw-data` n'a pas les vraies images pour
+  ce problème.
+- **Rapports de classification absents du pod** : seul le stage ONNX est tiré au
+  démarrage, donc `/api/reports` renvoie `classification_report: null`.
+- **34 fichiers encore en CRLF** dans l'historique git (les 4 qui bloquaient les
+  changements de branche ont été normalisés). À traiter dans un commit dédié, sinon
+  diff-cover comptera chaque ligne comme ajoutée.
+
+### Règles apprises cette session
+
+- **Le manifeste k3s doit suivre la production.** Les correctifs ont d'abord été appliqués
+  au cluster par bumps ciblés ; le manifeste a divergé, et un redéploiement depuis le
+  fichier aurait tout recassé. Toujours consigner dans
+  `k3s-fromOVHVps/rendered-k3s-manifests/30-medvision.yaml`.
+- **Les PV `local-path` sont ancrés à un nœud.** Tout pod qui monte
+  `medvision-model-artifacts` doit rester sur `apps-b` — mlflow était sur `apps-a` et
+  restait bloqué en attente.
+
+---
+
 ## État au 2026-06-15 (fin de session)
 
 ### Image ECR active
