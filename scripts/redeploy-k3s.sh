@@ -38,7 +38,7 @@ REPO_ROOT="$(git -C "$SCRIPT_DIR" rev-parse --show-toplevel)"
 K3S_REPO="${K3S_REPO:-$(cd "$REPO_ROOT/.." && pwd)/k3s-fromOVHVps}"
 MANIFEST="${K3S_REPO}/rendered-k3s-manifests/30-medvision.yaml"
 
-TAG="2026-06-16b"
+TAG="2026-07-18b"
 FULL_RECOVERY=false
 
 for arg in "$@"; do

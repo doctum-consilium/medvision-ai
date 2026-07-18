@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import os
 import tempfile
+from contextlib import asynccontextmanager
 from pathlib import Path
 from typing import Any
 
@@ -25,14 +26,17 @@ import numpy as np
 from fastapi import FastAPI, File, HTTPException, Query, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 
+from src.api.routes import events as events_routes
 from src.api.routes import images as images_routes
 from src.api.routes import models as models_routes
 from src.api.routes import predict as predict_routes
 from src.api.routes import problems as problems_routes
 from src.api.routes import reports as reports_routes
+from src.api.services.broadcaster import EventBroadcaster
 from src.api.services.image_index import ImageIndexService
 from src.api.services.registry_state import RegistryState
 from src.api.services.session_cache import OnnxSessionCache
+from src.api.services.watcher import ModelWatcher, WatcherConfig
 from src.preprocessing.image_loader import load_and_preprocess_image
 from src.registry.model_registry import (
     ModelNotFoundError,
@@ -46,17 +50,29 @@ from src.registry.model_registry import (
 def create_app(
     artifacts_dir: str | Path | None = None,
     data_root: Path | None = None,
+    watcher_config: WatcherConfig | None = None,
 ) -> FastAPI:
     """Construit l'application FastAPI avec son état applicatif.
 
     Args:
         artifacts_dir: Racine des artefacts modèles (surchargée en test).
         data_root: Racine des datasets pour l'index d'images (test).
+        watcher_config: Config du watcher DVC (défaut : environnement ;
+            OFF tant que MEDVISION_WATCH_ENABLED != 1).
 
     Returns:
-        Application prête à servir (legacy + /api).
+        Application prête à servir (legacy + /api + SSE).
     """
-    app = FastAPI(title="MedVision AI API", version="4.0.0")
+
+    @asynccontextmanager
+    async def lifespan(app: FastAPI):
+        # Le watcher démarre AVEC l'event loop (pas à l'import : les tests
+        # et les workers uvicorn doivent contrôler son cycle de vie).
+        app.state.watcher.start()
+        yield
+        await app.state.watcher.stop()
+
+    app = FastAPI(title="MedVision AI API", version="4.1.0", lifespan=lifespan)
 
     # CORS : vide par défaut (en prod, le nginx du front proxifie /api en
     # same-origin). Utile uniquement en dev local (ng serve sur :4200).
@@ -76,19 +92,28 @@ def create_app(
         max_sessions=int(os.getenv("MEDVISION_MAX_SESSIONS", "3"))
     )
     app.state.image_index = ImageIndexService(root=data_root)
+    app.state.broadcaster = EventBroadcaster()
+    app.state.watcher = ModelWatcher(app.state, config=watcher_config)
 
     # Tous les routers v2 partagent le préfixe /api — le nginx du front
     # Angular proxifie ce préfixe vers ce service.
-    for router_module in (problems_routes, models_routes, images_routes, predict_routes, reports_routes):
+    for router_module in (
+        problems_routes,
+        models_routes,
+        images_routes,
+        predict_routes,
+        reports_routes,
+        events_routes,
+    ):
         app.include_router(router_module.router, prefix="/api")
 
     @app.get("/api/health")
     def api_health() -> dict[str, str | None]:
-        """Sonde de vie v2 : expose aussi la version du registre."""
+        """Sonde de vie v2 : version du registre + état du watcher DVC."""
         return {
             "status": "ok",
             "registry_version": app.state.registry_state.version,
-            "watcher": "disabled",  # activé par la PR watcher/SSE
+            "watcher": app.state.watcher.status,
         }
 
     _register_legacy_routes(app)
