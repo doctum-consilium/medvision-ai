@@ -11,11 +11,13 @@ dépôt » ne puisse pas se reproduire silencieusement.
 from __future__ import annotations
 
 import numpy as np
+import pytest
 import tensorflow as tf
 
 from src.models.backbones import (
     TF_BACKBONES,
     BackboneConfig,
+    build_transfer_model,
     set_backbone_trainable,
 )
 from src.models.baseline_model import build_baseline_model
@@ -104,6 +106,39 @@ def test_set_backbone_trainable_freezes_batchnorm() -> None:
             assert layer.trainable is False
     # La toute dernière couche (non-BN) est bien entraînable.
     assert base.layers[-1].trainable is True
+
+
+class _FakeBase:
+    """Backbone factice : évite le téléchargement des poids imagenet en test.
+
+    `build_transfer_model` n'utilise que `.output` (KerasTensor à brancher sur
+    la tête de classification) et `.trainable` (bool) — ce substitut suffit.
+    """
+
+    def __init__(self, input_tensor) -> None:
+        self.output = tf.keras.layers.Conv2D(2, 1)(input_tensor)
+        self.trainable = True
+
+
+def test_build_transfer_model_warns_when_label_smoothing_requested(monkeypatch) -> None:
+    """label_smoothing > 0 émet un warning : le loss sparse ne sait pas le lisser.
+
+    Verrouille la décision documentée dans build_transfer_model : plutôt que de
+    casser model.save() (Keras 3) avec un loss custom, on garde le loss sparse
+    et on prévient l'utilisateur que le lissage n'est PAS appliqué.
+    """
+    fake_cfg = BackboneConfig(
+        cls=lambda include_top, weights, input_tensor: _FakeBase(input_tensor),
+        preprocess=lambda x: x,
+        unfreeze_layers=1,
+    )
+    monkeypatch.setitem(TF_BACKBONES, "fake", fake_cfg)
+
+    with pytest.warns(UserWarning, match="label_smoothing"):
+        model, _ = build_transfer_model(
+            "fake", image_size=IMG, num_classes=3, label_smoothing=0.1
+        )
+    assert model.output_shape == (None, 3)
 
 
 def test_tf_backbones_registry_is_well_formed() -> None:
