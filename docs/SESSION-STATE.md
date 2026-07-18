@@ -22,6 +22,15 @@ Point de reprise canonique. Mis à jour à chaque session significative.
 
 17 modèles ONNX sur PVC persistant, aucun pod en erreur.
 
+### Documentation
+
+La documentation technique de MedVision vit désormais sur le portail interne
+**<https://docs.doctumconsilium.com/>** (gaté Keycloak, accessible depuis le portail
+produits) : dix-sept chapitres écrits comme un manuel, environ soixante-dix mille mots —
+architecture, pipeline de données, entraînement, mathématiques de la vision et de la
+segmentation, Grad-CAM, inférence en production, infrastructure, exploitation, incidents
+vécus, qualité, sécurité, limites. Les sources sont dans `k3s-fromOVHVps/docs-portal/`.
+
 ### Le fil de la session
 
 Le point de départ était simple : les 17 modèles entraînés et poussés dans S3 via DVC
