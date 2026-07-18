@@ -24,6 +24,7 @@ from src.datasets.sample_browser import (
 )
 from src.preprocessing.image_loader import load_and_preprocess_image
 from src.registry.model_registry import (
+    best_available_model,
     compare_models,
     format_model_input,
     get_model_entry,
@@ -110,6 +111,40 @@ def _run_onnx(session: Any, image: np.ndarray) -> dict[str, np.ndarray]:
     out_names = [o.name for o in session.get_outputs()]
     outputs = session.run(None, {input_name: x})
     return dict(zip(out_names, outputs, strict=True))
+
+
+def _second_opinion(companion_problem: str, image_path: Path) -> dict | None:
+    """Verdict du MEILLEUR classifieur dédié du problème frère (« second avis »).
+
+    POURQUOI : la tête de classification des U-Net multitâches est bien plus
+    faible que les classifieurs dédiés (vécu : NORMAL à 1.000 sur une
+    pneumonie avérée). On affiche donc, à côté du masque, l'avis du meilleur
+    modèle de classification pure — choisi automatiquement par ses métriques.
+
+    Args:
+        companion_problem: Problème de classification frère (ex. "chest_xray").
+        image_path: Image analysée (même image que la segmentation).
+
+    Returns:
+        Dict {problem, model_name, predicted_class, confidence, probabilities}
+        ou None si aucun classifieur n'est disponible ou en cas d'échec
+        (le second avis ne doit JAMAIS faire échouer l'analyse principale).
+    """
+    try:
+        best = best_available_model(companion_problem)
+        if best is None:
+            return None
+        model_name, _entry = best
+        result = _predict(companion_problem, model_name, image_path)
+        return {
+            "problem": companion_problem,
+            "model_name": model_name,
+            "predicted_class": result["predicted_class"],
+            "confidence": result["confidence"],
+            "probabilities": result["probabilities"],
+        }
+    except Exception:
+        return None
 
 
 def _predict(problem: str, model_name: str, image_path: Path, mask_threshold: float = 0.5) -> dict:
@@ -514,6 +549,14 @@ with tab_predict:
                 for err_msg in prediction_errors:
                     st.error(err_msg)
 
+                # Second avis : sur les problèmes de segmentation, la tête de
+                # classification du U-Net est faible — on affiche AUSSI le
+                # verdict du meilleur classifieur dédié du problème frère.
+                second_opinion = None
+                companion = problem_meta.get("companion_problem")
+                if companion and prediction_rows and predict_path is not None:
+                    second_opinion = _second_opinion(companion, predict_path)
+
                 if prediction_rows:
                     with right_col:
                         st.markdown("#### Résultats")
@@ -524,6 +567,19 @@ with tab_predict:
   <h4>{row['model']}</h4>
   <div class="pred-meta">Prédiction : <strong>{row['predicted_class']}</strong></div>
   <div class="pred-meta">Confiance : <strong>{row['confidence']:.3f}</strong></div>
+</div>
+                                """,
+                                unsafe_allow_html=True,
+                            )
+                        if second_opinion is not None:
+                            st.markdown(
+                                f"""
+<div class="pred-card" style="border-left-color: var(--accent-2);">
+  <h4>Second avis — classification seule ({second_opinion['model_name']})</h4>
+  <div class="pred-meta">Prédiction : <strong>{second_opinion['predicted_class']}</strong></div>
+  <div class="pred-meta">Confiance : <strong>{second_opinion['confidence']:.3f}</strong></div>
+  <div class="pred-meta" style="font-size:0.8rem;">Meilleur modèle dédié du problème
+  « {second_opinion['problem']} » — plus fiable que la tête de classification du U-Net.</div>
 </div>
                                 """,
                                 unsafe_allow_html=True,
