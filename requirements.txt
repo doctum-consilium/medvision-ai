@@ -16,8 +16,11 @@ python-multipart==0.0.20
 pytest==8.3.5
 httpx==0.28.1
 plotly==6.0.0
-# DVC + remotes S3
-dvc[s3,gdrive]==3.59.2
+# DVC + remote S3 UNIQUEMENT — ne PAS réintroduire l'extra gdrive :
+# il tire PyDrive2 → pyOpenSSL 22.0.0 (épinglé) qui casse avec les
+# cryptography récents (« module 'lib' has no attribute 'GEN_EMAIL' »)
+# et a mis la prod à 0 modèle le 2026-07-18. Le remote DVC est S3.
+dvc[s3]==3.59.2
 # DVC/scmrepo attend pathspec < 1.0
 pathspec<1.0
 awscli==1.29.57
