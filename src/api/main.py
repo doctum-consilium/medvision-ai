@@ -192,16 +192,13 @@ def _predict_with_entry(model_entry: dict[str, Any], image_path: Path, image_siz
     raw = _run_onnx(session, image)
     out_names = list(raw.keys())
 
-    if model_entry["task_type"] == "segmentation_multitask":
+    if model_entry["task_type"] == "segmentation":
+        # Segmentation PURE : la tête de classification du U-Net existe mais
+        # n'est pas exploitée (trop peu fiable — incident 2026-07-18).
         seg_key = next((k for k in out_names if "seg" in k.lower()), out_names[0])
-        cls_key = next((k for k in out_names if "class" in k.lower() or "cls" in k.lower()), out_names[-1])
         mask = raw[seg_key][0, ..., 0]
         pred_mask = (mask >= 0.5).astype(np.uint8)
-        cls_raw = raw[cls_key][0]
-        effective_type = "binary" if len(model_entry["class_names"]) == 2 else "multiclass"
-        class_payload = _classification_payload(cls_raw, {**model_entry, "task_type": effective_type})
         return {
-            **class_payload,
             "mask_foreground_ratio": float(pred_mask.mean()),
             "mask_shape": list(pred_mask.shape),
         }

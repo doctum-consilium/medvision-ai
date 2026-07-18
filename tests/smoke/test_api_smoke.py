@@ -74,16 +74,23 @@ def test_predict_with_entry_classification(monkeypatch):
 
 
 def test_predict_with_entry_segmentation(monkeypatch):
+    """Segmentation pure : masque seul, AUCUNE prédiction de classe.
+
+    La tête de classification du U-Net est présente dans le modèle mais
+    volontairement ignorée (trop peu fiable — incident 2026-07-18).
+    """
     raw = {
         "segmentation_output": np.zeros((1, 4, 4, 1), dtype=np.float32),
         "class_output": np.array([[0.2, 0.8]], dtype=np.float32),
     }
     _patch_inference(monkeypatch, raw)
     res = M._predict_with_entry(
-        {"model_path": "x.onnx", "class_names": ["neg", "pos"], "task_type": "segmentation_multitask"},
+        {"model_path": "x.onnx", "class_names": ["neg", "pos"], "task_type": "segmentation"},
         Path("img.png"))
     assert "mask_foreground_ratio" in res
     assert res["mask_shape"] == [4, 4]
+    assert "predicted_class" not in res
+    assert "probabilities" not in res
 
 
 # ── Endpoints (TestClient, tout mocké) ────────────────────────────────────────

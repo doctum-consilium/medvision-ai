@@ -99,8 +99,14 @@ PROBLEMS: dict[str, dict[str, Any]] = {
         "class_names": ["glioma", "meningioma", "notumor", "pituitary"],
         "task_type": "multiclass",
     },
+    # Les deux problèmes ci-dessous sont de la segmentation PURE (task_type
+    # "segmentation") : le U-Net possède bien une tête de classification, mais
+    # elle est trop peu fiable pour être montrée (elle annonçait NORMAL à 1.000
+    # sur des pneumonies manifestes — incident 2026-07-18). Elle n'est donc ni
+    # exécutée ni affichée : ces écrans délimitent des zones, ils ne posent pas
+    # de diagnostic. Pour un diagnostic → les problèmes de classification.
     "brain_tumor_segmentation": {
-        "label": "Brain Tumor Segmentation + Classification",
+        "label": "Brain Tumor Segmentation",
         "config_path": "configs/brain_tumor_segmentation.yaml",
         "model_candidates": {
             "unet_multitask": "brain_tumor_segmentation_unet.onnx",
@@ -109,14 +115,10 @@ PROBLEMS: dict[str, dict[str, Any]] = {
             "unet_multitask": ["brain_tumor_segmentation_unet_metrics.json"],
         },
         "class_names": ["glioma", "meningioma", "pituitary", "notumor"],
-        "task_type": "segmentation_multitask",
-        # Second avis : la tête de classification du U-Net multitâche est
-        # bien plus faible que les classifieurs dédiés — on affiche AUSSI le
-        # verdict du meilleur modèle du problème de classification frère.
-        "companion_problem": "brain_mri",
+        "task_type": "segmentation",
     },
     "chest_xray_segmentation": {
-        "label": "Chest X-ray Lung Segmentation + Abnormality Classification",
+        "label": "Chest X-ray Lung Segmentation",
         "config_path": "configs/chest_xray_segmentation.yaml",
         "model_candidates": {
             "unet_multitask": "chest_xray_segmentation_unet.onnx",
@@ -125,11 +127,7 @@ PROBLEMS: dict[str, dict[str, Any]] = {
             "unet_multitask": ["chest_xray_segmentation_unet_metrics.json"],
         },
         "class_names": ["NORMAL", "ABNORMAL"],
-        "task_type": "segmentation_multitask",
-        # Second avis : la tête de classification de CE U-Net est notoirement
-        # mauvaise (NORMAL à 1.000 sur des pneumonies avérées — incident
-        # 2026-07-18). Le meilleur classifieur pneumonie tranche à côté.
-        "companion_problem": "chest_xray",
+        "task_type": "segmentation",
     },
 }
 
@@ -173,9 +171,6 @@ def load_registry(artifacts_dir: str | Path = DEFAULT_ARTIFACTS_DIR) -> dict[str
             "label": spec["label"],
             "task_type": spec["task_type"],
             "class_names": config.get("class_names", spec["class_names"]),
-            # Problème « frère » dont le meilleur classifieur donne un second
-            # avis (None pour les problèmes de classification pure).
-            "companion_problem": spec.get("companion_problem"),
             "models": {},
         }
         for model_key, model_filename in spec["model_candidates"].items():

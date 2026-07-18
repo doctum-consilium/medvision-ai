@@ -24,7 +24,6 @@ from src.datasets.sample_browser import (
 )
 from src.preprocessing.image_loader import load_and_preprocess_image
 from src.registry.model_registry import (
-    best_available_model,
     compare_models,
     format_model_input,
     get_model_entry,
@@ -113,40 +112,6 @@ def _run_onnx(session: Any, image: np.ndarray) -> dict[str, np.ndarray]:
     return dict(zip(out_names, outputs, strict=True))
 
 
-def _second_opinion(companion_problem: str, image_path: Path) -> dict | None:
-    """Verdict du MEILLEUR classifieur dédié du problème frère (« second avis »).
-
-    POURQUOI : la tête de classification des U-Net multitâches est bien plus
-    faible que les classifieurs dédiés (vécu : NORMAL à 1.000 sur une
-    pneumonie avérée). On affiche donc, à côté du masque, l'avis du meilleur
-    modèle de classification pure — choisi automatiquement par ses métriques.
-
-    Args:
-        companion_problem: Problème de classification frère (ex. "chest_xray").
-        image_path: Image analysée (même image que la segmentation).
-
-    Returns:
-        Dict {problem, model_name, predicted_class, confidence, probabilities}
-        ou None si aucun classifieur n'est disponible ou en cas d'échec
-        (le second avis ne doit JAMAIS faire échouer l'analyse principale).
-    """
-    try:
-        best = best_available_model(companion_problem)
-        if best is None:
-            return None
-        model_name, _entry = best
-        result = _predict(companion_problem, model_name, image_path)
-        return {
-            "problem": companion_problem,
-            "model_name": model_name,
-            "predicted_class": result["predicted_class"],
-            "confidence": result["confidence"],
-            "probabilities": result["probabilities"],
-        }
-    except Exception:
-        return None
-
-
 def _predict(problem: str, model_name: str, image_path: Path, mask_threshold: float = 0.5) -> dict:
     model_entry = get_model_entry(problem, model_name)
     session = load_onnx_model(str(Path(model_entry["model_path"]).resolve()))
@@ -158,26 +123,15 @@ def _predict(problem: str, model_name: str, image_path: Path, mask_threshold: fl
     class_names = model_entry["class_names"]
     out_names = list(raw.keys())
 
-    if model_entry["task_type"] == "segmentation_multitask":
-        # tf2onnx préserve les noms de couches Keras ; fallback sur l'index si absent.
+    if model_entry["task_type"] == "segmentation":
+        # Segmentation PURE : le U-Net a bien une tête de classification, mais
+        # elle est trop peu fiable pour être montrée (NORMAL à 1.000 sur des
+        # pneumonies manifestes — incident 2026-07-18). On ne lit QUE le masque.
+        # tf2onnx préserve les noms de couches Keras ; fallback sur l'index.
         seg_key = next((k for k in out_names if "seg" in k.lower()), out_names[0])
-        cls_key = next(
-            (k for k in out_names if "class" in k.lower() or "cls" in k.lower()),
-            out_names[-1],
-        )
         seg = raw[seg_key][0, ..., 0]
-        cls = raw[cls_key][0]
-        if len(class_names) == 2:
-            probs = {class_names[0]: float(1 - cls[0]), class_names[1]: float(cls[0])}
-        else:
-            probs = {name: float(cls[i]) for i, name in enumerate(class_names)}
-        pred = max(probs.items(), key=lambda item: item[1])[0]
-        confidence = float(max(probs.values()))
         mask = (seg >= mask_threshold).astype(np.float32)
         return {
-            "predicted_class": pred,
-            "confidence": confidence,
-            "probabilities": probs,
             "metrics": model_entry.get("metrics", {}),
             "mask_prob": seg.astype(np.float32),
             "mask": mask,
@@ -333,7 +287,7 @@ with st.sidebar:
     problem = st.selectbox("Problem", options=list(problems.keys()), format_func=lambda key: problems[key]["label"])
 
 problem_meta = problems[problem]
-is_segmentation_problem = problem_meta["task_type"] == "segmentation_multitask"
+is_segmentation_problem = problem_meta["task_type"] == "segmentation"
 
 with st.sidebar:
     if is_segmentation_problem:
@@ -521,18 +475,24 @@ with tab_predict:
                                 f"**{model_name}** — {type(exc).__name__}: {msg}"
                             )
                             continue
-                        prediction_rows.append(
-                            {
-                                "model": model_name,
-                                "predicted_class": result["predicted_class"],
-                                "confidence": float(result.get("confidence", 0.0)),
-                                "mask_foreground_ratio": float(result.get("mask_foreground_ratio", 0.0)),
-                                **{f"metric_{k}": v for k, v in result["metrics"].items() if isinstance(v, int | float)},
-                            }
-                        )
-                        prob_row = {"model": model_name}
-                        prob_row.update(result["probabilities"])
-                        prob_rows.append(prob_row)
+                        # Segmentation pure : aucune prédiction de classe à
+                        # collecter (le modèle ne rend qu'un masque).
+                        if not is_segmentation_problem:
+                            prediction_rows.append(
+                                {
+                                    "model": model_name,
+                                    "predicted_class": result["predicted_class"],
+                                    "confidence": float(result.get("confidence", 0.0)),
+                                    **{
+                                        f"metric_{k}": v
+                                        for k, v in result["metrics"].items()
+                                        if isinstance(v, int | float)
+                                    },
+                                }
+                            )
+                            prob_row = {"model": model_name}
+                            prob_row.update(result["probabilities"])
+                            prob_rows.append(prob_row)
                         if "mask" in result:
                             overlays.append((model_name, result["image"], result["mask"], result["mask_prob"]))
                             seg_debug_rows.append(
@@ -549,13 +509,26 @@ with tab_predict:
                 for err_msg in prediction_errors:
                     st.error(err_msg)
 
-                # Second avis : sur les problèmes de segmentation, la tête de
-                # classification du U-Net est faible — on affiche AUSSI le
-                # verdict du meilleur classifieur dédié du problème frère.
-                second_opinion = None
-                companion = problem_meta.get("companion_problem")
-                if companion and prediction_rows and predict_path is not None:
-                    second_opinion = _second_opinion(companion, predict_path)
+                if is_segmentation_problem and overlays:
+                    with right_col:
+                        st.markdown("#### Zones détectées")
+                        for row in seg_debug_rows:
+                            st.markdown(
+                                f"""
+<div class="pred-card">
+  <h4>{row['model']}</h4>
+  <div class="pred-meta">Surface détectée :
+    <strong>{row['mask_foreground_ratio'] * 100:.1f} %</strong> de l'image</div>
+  <div class="pred-meta" style="font-size:0.85rem;">Sensibilité du masque :
+    {row['threshold']:.2f}</div>
+</div>
+                                """,
+                                unsafe_allow_html=True,
+                            )
+                        st.caption(
+                            "Cet écran délimite des zones ; il ne pose pas de diagnostic. "
+                            "Pour une prédiction, utilisez un problème de classification."
+                        )
 
                 if prediction_rows:
                     with right_col:
@@ -571,19 +544,6 @@ with tab_predict:
                                 """,
                                 unsafe_allow_html=True,
                             )
-                        if second_opinion is not None:
-                            st.markdown(
-                                f"""
-<div class="pred-card" style="border-left-color: var(--accent-2);">
-  <h4>Second avis — classification seule ({second_opinion['model_name']})</h4>
-  <div class="pred-meta">Prédiction : <strong>{second_opinion['predicted_class']}</strong></div>
-  <div class="pred-meta">Confiance : <strong>{second_opinion['confidence']:.3f}</strong></div>
-  <div class="pred-meta" style="font-size:0.8rem;">Meilleur modèle dédié du problème
-  « {second_opinion['problem']} » — plus fiable que la tête de classification du U-Net.</div>
-</div>
-                                """,
-                                unsafe_allow_html=True,
-                            )
 
                     st.markdown("#### Tableau de prédictions")
                     st.dataframe(pd.DataFrame(prediction_rows), use_container_width=True)
@@ -595,31 +555,33 @@ with tab_predict:
                         prob_chart = prob_df.set_index("model")
                         st.bar_chart(prob_chart, use_container_width=True)
 
-                    if overlays:
-                        st.markdown("#### Segmentation")
-                        st.dataframe(pd.DataFrame(seg_debug_rows), use_container_width=True)
+                # Hors du bloc « prediction_rows » : en segmentation pure il
+                # n'y a AUCUNE prédiction de classe, mais il y a un masque.
+                if overlays:
+                    st.markdown("#### Segmentation")
+                    st.dataframe(pd.DataFrame(seg_debug_rows), use_container_width=True)
 
-                        if all(row["mask_foreground_ratio"] == 0.0 for row in seg_debug_rows):
-                            st.warning(
-                                "Tous les masques sont vides au seuil actuel. "
-                                "Essayer un seuil plus bas (0.30 ou 0.20) et inspecter la carte de probabilité."
-                            )
+                    if all(row["mask_foreground_ratio"] < 1e-9 for row in seg_debug_rows):
+                        st.warning(
+                            "Tous les masques sont vides au seuil actuel. "
+                            "Essayer un seuil plus bas (0.30 ou 0.20) et inspecter la carte de probabilité."
+                        )
 
-                        for model_name, image, mask, mask_prob in overlays:
-                            st.markdown(f"##### {model_name}")
-                            c1, c2, c3, c4 = st.columns([1, 1, 1.2, 1])
-                            with c1:
-                                st.caption("Image prétraitée")
-                                st.image(image, use_container_width=True)
-                            with c2:
-                                st.caption("Masque binaire")
-                                st.image(mask, clamp=True, use_container_width=True)
-                            with c3:
-                                st.caption("Superposition")
-                                st.image(_blend_overlay(image, mask), use_container_width=True)
-                            with c4:
-                                st.caption("Carte de probabilité")
-                                st.image(mask_prob, clamp=True, use_container_width=True)
+                    for model_name, image, mask, mask_prob in overlays:
+                        st.markdown(f"##### {model_name}")
+                        c1, c2, c3, c4 = st.columns([1, 1, 1.2, 1])
+                        with c1:
+                            st.caption("Image prétraitée")
+                            st.image(image, use_container_width=True)
+                        with c2:
+                            st.caption("Masque binaire")
+                            st.image(mask, clamp=True, use_container_width=True)
+                        with c3:
+                            st.caption("Superposition")
+                            st.image(_blend_overlay(image, mask), use_container_width=True)
+                        with c4:
+                            st.caption("Carte de probabilité")
+                            st.image(mask_prob, clamp=True, use_container_width=True)
 
             finally:
                 if tmp_path is not None:
