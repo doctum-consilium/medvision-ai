@@ -8,7 +8,7 @@ Point de reprise canonique. Mis à jour à chaque session significative.
 ## 🤝 HANDOFF 2026-07-27 — L'interface web Angular EN PRODUCTION sur ui.medvision
 
 > **En ligne : <https://ui.medvision.doctumconsilium.com>** — image
-> `medvision-web:2026-07-27`. L'interface Streamlit historique reste en service sur
+> `medvision-web:2026-07-27b`. L'interface Streamlit historique reste en service sur
 > `app.medvision`, l'API sur `api.medvision` ; `medvision-ai` n'a pas bougé
 > (`2026-07-18f`). Plan suivi : `docs/plans/2026-07-27-medvision-front-angular-b1.md`.
 
@@ -27,6 +27,24 @@ Point de reprise canonique. Mis à jour à chaque session significative.
 
 **Note sur le compte de modèles :** 15 disponibles, pas 17. Les deux `convnexttiny`
 restent désactivés (ONNX invalide dès l'export) ; 15 + 2 = les 17 fichiers du pipeline.
+
+### Refonte visuelle (seconde passe du 2026-07-27)
+
+La première mise en ligne fonctionnait mais faisait « panneau
+d'administration » : fond blanc, cartes plates, et surtout des libellés restés
+en anglais alors que tout le reste parlait français. Repris dans la foulée —
+accroche qui dit franchement ce que l'outil ne fait pas, parcours en trois
+temps, noms d'analyses et catégories traduits (avec repli sur l'étiquette
+d'origine), accord en nombre, identité dessinée déclinée en icône d'onglet
+(l'ancienne était encore celle du générateur de projet), palette ivoire chaude
+et trois niveaux d'ombre.
+
+Deux fragilités écartées en **regardant** le rendu plutôt qu'en relisant le
+code : le titre en dégradé reposait sur `color: transparent` et disparaissait
+si le dégradé ne peignait pas ; l'animation d'apparition masquait le contenu
+tant qu'elle n'avait pas tourné. Et les en-têtes de tri du tableau comparatif,
+utilisables à la souris seulement, sont devenus de vrais boutons annonçant
+`aria-sort`.
 
 ### Deux défauts trouvés PENDANT la mise en ligne, corrigés
 
