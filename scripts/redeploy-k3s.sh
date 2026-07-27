@@ -12,7 +12,7 @@
 #
 # Usage    : ./scripts/redeploy-k3s.sh [TAG] [--full-recovery]
 # Arguments:
-#   TAG              Tag ECR de l'image (défaut : 2026-06-15f)
+#   TAG              Tag ECR de l'image (défaut : le tag en production, 2026-07-18f)
 #   --full-recovery  À utiliser si k3s vient d'être réinstallé.
 # Exit codes:
 #   0  Déploiement réussi
@@ -38,7 +38,9 @@ REPO_ROOT="$(git -C "$SCRIPT_DIR" rev-parse --show-toplevel)"
 K3S_REPO="${K3S_REPO:-$(cd "$REPO_ROOT/.." && pwd)/k3s-fromOVHVps}"
 MANIFEST="${K3S_REPO}/rendered-k3s-manifests/30-medvision.yaml"
 
-TAG="2026-07-18b"
+# Tag réellement en production. À mettre à jour APRÈS chaque déploiement,
+# sinon relancer ce script sans argument fait revenir à une version périmée.
+TAG="2026-07-18f"
 FULL_RECOVERY=false
 
 for arg in "$@"; do
