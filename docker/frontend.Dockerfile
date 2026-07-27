@@ -40,9 +40,15 @@ COPY --from=build /build/dist/medvision-web/browser /usr/share/nginx/html
 # configuration devient invalide.
 ENV NGINX_ENTRYPOINT_LOCAL_RESOLVERS=1
 
-# Adresse de l'API. Surchargeable par le ConfigMap k3s sans reconstruire
-# l'image (utile pour pointer une API de recette).
-ENV MEDVISION_API_UPSTREAM=http://medvision-api:8000
+# Adresse de l'API. Surchargeable sans reconstruire l'image (utile pour
+# pointer une API de recette).
+#
+# NOM COMPLET OBLIGATOIRE. C'est nginx qui résout ce nom, à chaque requête —
+# et nginx n'applique PAS les domaines de recherche de /etc/resolv.conf. Le
+# nom court « medvision-api » échoue donc avec « Host not found » et toutes
+# les requêtes vers /api répondent 502, alors que le même nom court marche
+# depuis un shell du pod. Constaté en production le 2026-07-27.
+ENV MEDVISION_API_UPSTREAM=http://medvision-api.medvision.svc.cluster.local:8000
 
 # Restreint la substitution à NOS deux variables : sans ce garde-fou,
 # envsubst pourrait toucher à autre chose dans le gabarit.

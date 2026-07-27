@@ -1,7 +1,7 @@
 # ROADMAP
 
 ## Last Update
-2026-07-27 (interface web Angular complète : accueil, analyse, comparaison — prête à déployer)
+2026-07-27 (interface web Angular EN PRODUCTION sur ui.medvision.doctumconsilium.com)
 
 ## Active Phase
 Phase 3 — Nouvelle interface (Angular) et portail de documentation
@@ -76,8 +76,29 @@ en-têtes de cache conformes) ; manifests analysés sans erreur, détecteur d'é
 dépôt silencieux sur MedVision. Premier affichage : 296 ko bruts, 86 ko transférés —
 Chart.js et les écrans lourds sont chargés à la demande.
 
-**Images.** `medvision-web:2026-07-27` (à construire et pousser).
-`medvision-ai` reste en `2026-07-18f`, inchangée.
+**Mise en ligne, le jour même.** Dépôt ECR créé, image publiée, manifests appliqués de
+façon ciblée (création des objets neufs, patchs pour l'API et le point d'entrée — jamais
+le fichier entier, qui pourrait écraser un secret), enregistrement DNS créé, certificat
+émis pour les trois noms. Vérifié sur l'adresse publique : les trois écrans répondent, le
+registre annonce quinze modèles disponibles, la banque d'exemples sert 176 radiographies
+et 200 IRM, une prédiction réelle sur trois modèles renvoie des résultats cohérents, la
+segmentation ne renvoie aucune classe, et le flux temps réel bat. Streamlit et l'API
+historiques sont intacts.
+
+**Deux défauts trouvés pendant la mise en ligne.** Le relais vers l'API répondait 502 :
+depuis que l'adresse passe par une variable, c'est nginx qui résout le nom, et il
+n'applique pas les domaines de recherche de Kubernetes — il lui faut le nom complet du
+service. Et le cache DVC de l'API, présent en production depuis le 18 juillet, n'était
+décrit dans aucun manifeste : un redéploiement l'aurait supprimé en silence. Les deux
+sont corrigés dans le dépôt.
+
+**Une découverte d'infrastructure, à traiter.** La synchronisation DNS de la plateforme
+lit un **clone périmé** des manifests (`Github/` au lieu de `GithubPerso/`), dont le
+fichier MedVision date du 26 avril. Tout hôte ajouté depuis lui est invisible. Ce n'est
+pas propre à MedVision : cela concerne toute la zone.
+
+**Images.** `medvision-web:2026-07-27` en production. `medvision-ai` reste en
+`2026-07-18f`, inchangée.
 
 **Hors scope.** Le retrait de Streamlit (il reste en ligne tant que la parité n'est pas
 constatée), l'authentification Keycloak sur l'interface, l'activation du surveillant DVC,

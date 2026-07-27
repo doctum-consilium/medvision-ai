@@ -5,69 +5,76 @@ Point de reprise canonique. Mis à jour à chaque session significative.
 
 ---
 
-## 🤝 HANDOFF 2026-07-27 — L'interface web Angular, complète et prête à déployer (NON DÉPLOYÉE)
+## 🤝 HANDOFF 2026-07-27 — L'interface web Angular EN PRODUCTION sur ui.medvision
 
-> **Rien n'est en production côté interface.** Tout le code est écrit, testé et commité en
-> local ; **aucune branche n'est poussée**, aucune image n'est construite, aucun DNS créé.
-> La production reste exactement telle qu'elle était : `medvision-ai:2026-07-18f`,
-> Streamlit sur `app.medvision`, API sur `api.medvision`.
-> Plan suivi : **`docs/plans/2026-07-27-medvision-front-angular-b1.md`**.
+> **En ligne : <https://ui.medvision.doctumconsilium.com>** — image
+> `medvision-web:2026-07-27`. L'interface Streamlit historique reste en service sur
+> `app.medvision`, l'API sur `api.medvision` ; `medvision-ai` n'a pas bougé
+> (`2026-07-18f`). Plan suivi : `docs/plans/2026-07-27-medvision-front-angular-b1.md`.
 
-### Où en est-on exactement
+### Vérifié en ligne à la clôture
 
-| Élément | État |
+| Contrôle | Résultat |
 |---|---|
-| Écrans accueil / analyse / comparaison | Écrits, compilés, 18 tests verts |
-| Image nginx `medvision-web` | Dockerfile écrit, **construite et essayée en local** |
-| Manifests k3s (`medvision-web`, hôte `ui.medvision`) | Écrits et validés, **non appliqués** |
-| Dépôt ECR `platform/medvision-web` | **N'existe pas encore** — à créer |
-| Enregistrement DNS `ui.medvision` | **N'existe pas encore** |
+| Certificat TLS | valide, trois noms, expire le 2026-10-25 |
+| Les trois écrans (`/`, `/studio`, `/comparaison`) | 200 |
+| Registre des modèles à travers l'interface | 15 disponibles (5 + 8 + 1 + 1) |
+| Banque d'exemples | 176 radiographies, 200 IRM de segmentation |
+| Prédiction réelle, 3 modèles en une requête | NORMAL 0,597 · PNEUMONIA 0,561 · PNEUMONIA 0,571 |
+| Segmentation réelle | surface 0,7 %, masque de probabilités servi ; `predicted_class` = `None` |
+| Flux temps réel (SSE) | `event: hello` puis battements de cœur |
+| Streamlit et API historiques | 200, intacts |
 
-### Les six branches, dans l'ordre de fusion
+**Note sur le compte de modèles :** 15 disponibles, pas 17. Les deux `convnexttiny`
+restent désactivés (ONNX invalide dès l'export) ; 15 + 2 = les 17 fichiers du pipeline.
 
-Chaînées : chacune est construite sur la précédente, donc elles se fusionnent d'affilée
-sans le moindre conflit — **mais dans cet ordre**, et en vérifiant que la base de chaque
-PR est bien `main` avant de la fusionner.
+### Deux défauts trouvés PENDANT la mise en ligne, corrigés
 
-Dépôt `medvision-ai` :
+1. **Le relais vers l'API répondait 502.** Journal de nginx :
+   `medvision-api could not be resolved (3: Host not found)`. Depuis que l'adresse passe
+   par une variable — le correctif contre la boucle de redémarrage — c'est nginx qui
+   résout le nom, et **nginx n'applique pas les domaines de recherche** de
+   `/etc/resolv.conf`. Le nom court marche depuis un shell du pod mais pas depuis nginx.
+   Corrigé par le nom complet `medvision-api.medvision.svc.cluster.local`, dans les
+   manifests **et** dans la valeur par défaut de l'image.
+2. **Le cache DVC de l'API n'était décrit nulle part.** Il existe en production depuis le
+   18 juillet ; un redéploiement depuis le dépôt l'aurait supprimé en silence. Ajouté aux
+   manifests ; les montages décrits sont désormais identiques à ceux du cluster.
 
-1. `chore/gitignore-node-angular` — les 394 Mo de `node_modules` cessent d'être suivis
-2. `feat/front-socle-angular` — outillage, services, flux temps réel, écran d'accueil, CI front
-3. `feat/front-studio-prediction` — écran d'analyse et superpositions de segmentation
-4. `feat/front-comparaison-metriques` — écran de comparaison
-5. `build/docker-frontend` — image nginx et script de publication
-6. `docs/handoff-front-angular` — cette documentation
+### Deux découvertes d'infrastructure à traiter
 
-Indépendante (aucun fichier commun, fusionnable quand on veut) :
+1. **🔴 La synchronisation DNS travaille sur un clone périmé.**
+   `scripts/ovh_dns_sync_k3s_zone.sh` lit `RENDERED_MANIFESTS_DIR`, que la configuration
+   pointe sur **`/home/yann/Documents/Github/k3s-fromOVHVps/`** (et non `GithubPerso/`) —
+   un ancien clone dont `30-medvision.yaml` **date du 26 avril**. Conséquence : tout hôte
+   ajouté depuis n'a jamais été créé par ce script, et il pourrait supprimer des
+   enregistrements sur la foi d'une description obsolète. `ui.medvision` a dû être créé en
+   forçant la liste des hôtes. **À corriger dans la configuration.**
+2. **Le secret de tirage ECR était périmé de neuf jours.** Un jeton ECR vit 12 h : les
+   pods déjà démarrés ne s'en aperçoivent pas, mais tout nouveau tag échoue en
+   `403 Forbidden`. Renouvelé par `kubectl patch` (jamais par delete/create : cela ouvre
+   une fenêtre où le secret n'existe pas).
 
-- `chore/tag-redeploiement-a-jour` — le tag par défaut du script de redéploiement était
-  resté sur `2026-07-18b` : le lancer sans argument après un incident aurait redéployé
-  une image antérieure aux correctifs du 18 juillet.
-
-Dépôt `k3s-fromOVHVps`, branche `deploy/medvision-web` (deux commits) :
-
-- la remise en phase du gabarit de déploiement avec la production ;
-- l'ajout du déploiement `medvision-web` et de l'hôte `ui.medvision`.
-
-### Pour mettre en ligne (dans cet ordre)
+### Commandes de déploiement réellement utilisées
 
 ```bash
-# 1. Créer le dépôt d'images (une seule fois)
 aws ecr create-repository --repository-name platform/medvision-web --region eu-west-3
-
-# 2. Construire et publier l'image
-cd medvision-ai && ./scripts/build-and-push-web.sh 2026-07-27
-
-# 3. Appliquer les manifests (jamais le fichier entier : il contient des secrets)
-kubectl -n medvision apply -f <(…)   # ou laisser passer par la voie habituelle du dépôt k3s
-
-# 4. Créer l'enregistrement DNS — TOUJOURS en simulation d'abord
-cd k3s-fromOVHVps
-DNS_SYNC_DRY_RUN=true scripts/ovh_dns_sync_k3s_zone.sh   # doit ne proposer QUE la création de ui.medvision
+./scripts/build-and-push-web.sh 2026-07-27          # depuis medvision-ai
+kubectl create -f <deployment+service medvision-web>  # objets NEUFS, extraits du manifeste
+kubectl -n medvision patch deploy medvision-api --type strategic -p '<volumeMounts+volumes>'
+kubectl -n medvision patch ingress medvision-ingress --type merge -p '<tls+rules+annotations>'
+kubectl -n medvision set env deploy/medvision-web MEDVISION_API_UPSTREAM=http://medvision-api.medvision.svc.cluster.local:8000
+DNS_RECORDS="ui.medvision.doctumconsilium.com" bash scripts/ovh_dns_sync_k3s_zone.sh <conf>
 ```
 
-Le script de synchronisation DNS **supprime les enregistrements A qui divergent** et il
-n'y a pas de joker sur la zone : la simulation n'est pas facultative.
+**Jamais `kubectl apply` du fichier entier** : le garde-fou du poste le bloque, et à
+raison — un manifeste peut écraser un secret réel par un placeholder.
+
+### Suivi Jira
+
+Le dépôt est désormais mappé sur le projet **MVA « Medical vision AI »**. Épic **MVA-1**,
+chantiers **MVA-2** à **MVA-7**, défauts **MVA-8** (dérive du gabarit) et **MVA-9** (tag de
+redéploiement périmé).
 
 ### Trois choses à savoir avant de toucher à ce code
 
@@ -88,12 +95,14 @@ n'y a pas de joker sur la zone : la simulation n'est pas facultative.
 
 ### Ce qui reste ouvert
 
-- Six brouillons de documentation non suivis traînent dans `docs/` (`handbook/`,
-  `manual/`, `04-`, `10-`, `15-`, `16-`). Ce sont des versions antérieures des chapitres
-  qui vivent maintenant dans `k3s-fromOVHVps/docs-portal/content/medvision/` — à
-  supprimer, la suppression ayant été refusée par le contrôle de permissions ce jour-là.
-- `medvision-ai` n'a **pas de projet Jira** (absent de `~/.claude/hooks/jira-repos.tsv`) :
-  aucun ticket n'a été créé pour ce chantier.
+- **Le chemin périmé de la synchronisation DNS** (voir plus haut) : c'est le point le
+  plus important, il touche toute la plateforme et pas seulement MedVision.
+- **Retrait de Streamlit** : à décider une fois la parité constatée à l'usage.
+- **Authentification** : `ui.medvision` est public, comme l'était `app.medvision`.
+- **Surveillant DVC** toujours désactivé (`MEDVISION_WATCH_ENABLED`) — l'interface sait
+  déjà réagir au flux temps réel, l'activation reste ta décision.
+- **Les deux `convnexttiny`** restent désactivés : leur ONNX est invalide dès l'export
+  (bug tf2onnx/ConvNeXt), il faut un ré-export sur le PC ML.
 - Le détecteur d'écarts du dépôt k3s signale encore trois divergences **sans rapport avec
   MedVision** : `70-keycloak`, `80-products`, `90-monitoring`.
 
