@@ -42,6 +42,12 @@ la racine du dépôt.
 | `src/app/pages/` | Un dossier par écran |
 | `src/styles.css` | Tokens du design system **et** pont vers Tailwind |
 
+## En production
+
+L'interface est en ligne sur **<https://ui.medvision.doctumconsilium.com>**
+(image `medvision-web:2026-07-27`). L'interface Streamlit historique reste en
+service sur `app.medvision.doctumconsilium.com`.
+
 ## Deux règles à ne pas casser
 
 1. **Les types suivent l'API.** Toute évolution de schéma côté FastAPI se

@@ -6,7 +6,7 @@
 | [2026-06-15-medvision-pipeline-dvc-ecr.md](2026-06-15-medvision-pipeline-dvc-ecr.md) | Architecture DVC+S3 + entrypoint + guide entraînement local | Livré 2026-06-15 |
 | [2026-07-18-medvision-pr10-refonte-angular.md](2026-07-18-medvision-pr10-refonte-angular.md) | PR #10 débloquée + 17 modèles en prod + refonte Angular | Livré en partie 2026-07-18 (front au socle) |
 | [2026-07-18-handoff-medvision.md](2026-07-18-handoff-medvision.md) | **Point de reprise** : état prod, causes racines, dettes, marche à suivre | À suivre |
-| [2026-07-27-medvision-front-angular-b1.md](2026-07-27-medvision-front-angular-b1.md) | Reprise du chantier B1 : front Angular complet (accueil, studio, comparaison) jusqu'au déploiement `ui.medvision` | Code livré 2026-07-27 — **reste à publier l'image, appliquer les manifests et créer le DNS** |
+| [2026-07-27-medvision-front-angular-b1.md](2026-07-27-medvision-front-angular-b1.md) | Reprise du chantier B1 : front Angular complet (accueil, studio, comparaison) jusqu'au déploiement `ui.medvision` | **Livré et déployé 2026-07-27** — en ligne sur `ui.medvision.doctumconsilium.com` |
 
 ## Résumé de ce qui a été livré (2026-06-15)
 
