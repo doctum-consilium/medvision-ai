@@ -19,6 +19,22 @@
 > **Pour reprendre : lire `docs/plans/2026-07-18-handoff-medvision.md`**, qui contient
 > l'état exact, la marche à suivre et les dettes ouvertes.
 
+> **MISE À JOUR DU 2026-07-27 — chantier 2 (front Angular) TERMINÉ côté code.**
+>
+> Les trois écrans existent, sont testés et empaquetés dans une image nginx : accueil,
+> analyse multi-modèles avec superpositions de segmentation réglables sans ré-inférence,
+> et comparaison. Les manifests k3s sont écrits (`medvision-web`, hôte `ui.medvision`,
+> Streamlit conservé). **Rien n'est déployé** : l'image reste à publier, les manifests à
+> appliquer et le DNS à créer.
+>
+> Deux écarts par rapport à ce plan, assumés :
+> - **Angular 19** (et non 20) — c'est la version du socle déjà installé.
+> - **Le design system maison est conservé** et Tailwind le consomme au lieu de le
+>   remplacer : la bascule clair/sombre repeint ainsi aussi les classes utilitaires.
+>
+> Suite et détail : **`docs/plans/2026-07-27-medvision-front-angular-b1.md`** et le bloc
+> de reprise en tête de `docs/SESSION-STATE.md`.
+
 ## Context
 
 Yann a entraîné 17 modèles ONNX et les a poussés dans S3 via DVC, mais l'UI Streamlit de prod n'en montre que 4. Cause racine vérifiée : la prod (image `medvision-ai:2026-06-16b`) fait `dvc pull convert_to_onnx` au démarrage avec le **`dvc.lock` baked dans l'image**, construit depuis `main` qui ne connaît que 4 ONNX. La PR #10 (`feat/dvc-17-modeles-et-portabilite`) porte le nouveau pipeline 17 modèles mais a **4 checks CI rouges**. Il faut : réparer la CI, merger, rebuild + redéployer. Ensuite, refonte du front en **Angular** (UI professionnelle, coexiste avec Streamlit, parité complète) avec **réactivité SSE** : un nouveau modèle poussé via DVC apparaît dans l'UI sans redéploiement.
