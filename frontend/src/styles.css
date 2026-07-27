@@ -1,15 +1,59 @@
 /*
- * Design system MedVision — tokens et primitives partagées.
+ * Design system MedVision — tokens, primitives partagées, et pont vers
+ * Tailwind.
  *
- * POURQUOI un design system maison plutôt qu'un framework CSS : le rendu
- * médical demande un contrôle précis (contrastes, images en niveaux de
- * gris), le VPS est petit (aucune dépendance à télécharger) et l'identité
- * visuelle se change ici, en un seul endroit.
+ * POURQUOI des tokens maison PLUS Tailwind, et pas l'un ou l'autre : le
+ * rendu médical demande un contrôle précis des contrastes et des images en
+ * niveaux de gris, donc l'identité visuelle (couleurs, rayons, ombres) se
+ * décide ici, en un seul endroit. Tailwind, lui, sert à la mise en page et
+ * aux états (survol, focus, points de rupture) — écrire ça à la main est
+ * long et se périme vite.
  *
  * Thème clair/sombre piloté par l'attribut `data-theme` sur <html>
  * (ThemeService : préférence système au premier chargement, puis choix
  * de l'utilisateur mémorisé).
  */
+
+@import "tailwindcss";
+
+/*
+ * Le variant `dark:` de Tailwind suit notre attribut `data-theme` plutôt
+ * que la media query système — sinon le bouton de bascule de thème serait
+ * ignoré par toutes les classes `dark:*`.
+ */
+@custom-variant dark (&:where([data-theme="dark"], [data-theme="dark"] *));
+
+/*
+ * Pont tokens → Tailwind. Le mot-clé `inline` est essentiel : sans lui,
+ * Tailwind copierait la VALEUR des variables au moment de la compilation
+ * et les utilitaires (`bg-surface`, `text-ink`…) resteraient figés sur le
+ * thème clair. Avec `inline`, l'utilitaire généré référence la variable
+ * elle-même, donc il change de couleur au runtime quand `data-theme`
+ * bascule — sans recompiler quoi que ce soit.
+ */
+@theme inline {
+  --color-bg: var(--bg);
+  --color-surface: var(--surface);
+  --color-surface-2: var(--surface-2);
+  --color-line: var(--line);
+  --color-ink: var(--ink);
+  --color-ink-muted: var(--ink-muted);
+  --color-accent: var(--accent);
+  --color-accent-strong: var(--accent-strong);
+  --color-accent-soft: var(--accent-soft);
+  --color-accent-2: var(--accent-2);
+  --color-danger: var(--danger);
+  --color-danger-soft: var(--danger-soft);
+  --color-warn: var(--warn);
+  --color-warn-soft: var(--warn-soft);
+
+  --radius-card: var(--radius);
+  --radius-field: var(--radius-sm);
+
+  --shadow-card: var(--shadow);
+
+  --font-sans: var(--font);
+}
 
 :root {
   /* Vert médical profond sur ivoire, accent corail pour les alertes. */

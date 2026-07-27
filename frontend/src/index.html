@@ -1,10 +1,18 @@
 <!doctype html>
-<html lang="en">
+<html lang="fr" data-theme="light">
 <head>
   <meta charset="utf-8">
-  <title>MedvisionWeb</title>
+  <title>MedVision AI — Analyse d'images médicales</title>
   <base href="/">
   <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Démonstrateur pédagogique d'analyse d'images médicales par intelligence artificielle. Ne remplace pas un avis médical professionnel.">
+  <!--
+    `data-theme` est posé ici dès le HTML, avant que l'application ne
+    démarre : sans cette valeur de départ, la page s'afficherait une
+    fraction de seconde sans ses couleurs, ce qui donne un « flash » blanc
+    désagréable — surtout pour quelqu'un qui a choisi le thème sombre.
+    Le ThemeService remplace ensuite cette valeur par le vrai choix.
+  -->
   <link rel="icon" type="image/x-icon" href="favicon.ico">
 </head>
 <body>

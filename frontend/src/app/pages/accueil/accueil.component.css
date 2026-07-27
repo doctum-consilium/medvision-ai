@@ -1,0 +1,42 @@
+/*
+ * Grille de cartes qui se réorganise seule : `auto-fill` + `minmax` évitent
+ * d'écrire des points de rupture à la main, et les cartes restent lisibles
+ * du téléphone au grand écran.
+ */
+
+.grille {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 1rem;
+  margin-top: 1rem;
+}
+
+.carte {
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+}
+
+.carte-entete {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.6rem;
+}
+
+.carte-entete h3 {
+  margin: 0;
+}
+
+.carte-compte strong {
+  font-size: 1.5rem;
+  color: var(--accent-strong);
+}
+
+.carte-classes {
+  font-size: 0.84rem;
+}
+
+.carte-squelette {
+  height: 148px;
+}

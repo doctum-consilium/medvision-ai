@@ -1,0 +1,10 @@
+{
+  "//": "Proxy de DÉVELOPPEMENT uniquement (ng serve). Il joue le même rôle que nginx en production : le front appelle /api sans jamais connaître l'hôte de l'API. Changez MEDVISION_API_URL en variable si vous visez une API locale (http://localhost:8000).",
+  "/api": {
+    "target": "https://api.medvision.doctumconsilium.com",
+    "secure": true,
+    "changeOrigin": true,
+    "//buffer": "Le flux temps réel (/api/events) ne doit pas être mis en tampon, sinon les événements arrivent par paquets — ou jamais.",
+    "buffer": false
+  }
+}

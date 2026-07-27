@@ -1,59 +1,55 @@
-# MedvisionWeb
+# MedVision AI — interface web
 
-This project was generated using [Angular CLI](https://github.com/angular/angular-cli) version 19.0.6.
+Interface publique d'analyse d'images médicales. Elle consomme l'API v2 de
+`src/api/` (préfixe `/api`) et coexiste avec l'interface Streamlit historique :
+Streamlit reste sur `app.medvision.doctumconsilium.com`, celle-ci vise
+`ui.medvision.doctumconsilium.com`.
 
-## Development server
-
-To start a local development server, run:
-
-```bash
-ng serve
-```
-
-Once the server is running, open your browser and navigate to `http://localhost:4200/`. The application will automatically reload whenever you modify any of the source files.
-
-## Code scaffolding
-
-Angular CLI includes powerful code scaffolding tools. To generate a new component, run:
+## Démarrer en développement
 
 ```bash
-ng generate component component-name
+npm ci                      # installe EXACTEMENT ce que dit package-lock.json
+npm start                   # http://localhost:4200
 ```
 
-For a complete list of available schematics (such as `components`, `directives`, or `pipes`), run:
+Le serveur de développement proxifie `/api` vers l'API de production
+(`proxy.conf.json`). Pour viser une API locale, changez la cible de ce fichier
+en `http://localhost:8000` — le code de l'application, lui, ne connaît jamais
+l'hôte de l'API : il appelle toujours `/api`.
+
+## Vérifier avant de pousser
 
 ```bash
-ng generate --help
+npm run build                                            # compilation stricte + budgets
+CHROME_BIN=$(which google-chrome) \
+  npx ng test --watch=false --browsers=ChromeHeadless    # tests unitaires
 ```
 
-## Building
+Ces deux commandes sont exactement celles du job GitHub `CI Front`
+(`.github/workflows/ci-front.yml`), et `scripts/ci_local.sh` les rejoue depuis
+la racine du dépôt.
 
-To build the project run:
+## Comment c'est organisé
 
-```bash
-ng build
-```
+| Dossier | Rôle |
+|---|---|
+| `src/app/core/api/` | Clients HTTP typés + `api.types.ts`, **miroir des schémas FastAPI** |
+| `src/app/core/realtime/` | Flux temps réel (SSE) : reconnexion et resynchronisation |
+| `src/app/core/state/` | `RegistreStore` — la source de vérité partagée par tous les écrans |
+| `src/app/core/theme/` | Thème clair/sombre par l'attribut `data-theme` |
+| `src/app/core/i18n/` | Tous les libellés français, en un seul endroit |
+| `src/app/shared/` | Composants réutilisables (graphes, superpositions) |
+| `src/app/pages/` | Un dossier par écran |
+| `src/styles.css` | Tokens du design system **et** pont vers Tailwind |
 
-This will compile your project and store the build artifacts in the `dist/` directory. By default, the production build optimizes your application for performance and speed.
+## Deux règles à ne pas casser
 
-## Running unit tests
-
-To execute unit tests with the [Karma](https://karma-runner.github.io) test runner, use the following command:
-
-```bash
-ng test
-```
-
-## Running end-to-end tests
-
-For end-to-end (e2e) testing, run:
-
-```bash
-ng e2e
-```
-
-Angular CLI does not come with an end-to-end testing framework by default. You can choose one that suits your needs.
-
-## Additional Resources
-
-For more information on using the Angular CLI, including detailed command references, visit the [Angular CLI Overview and Command Reference](https://angular.dev/tools/cli) page.
+1. **Les types suivent l'API.** Toute évolution de schéma côté FastAPI se
+   répercute dans `core/api/api.types.ts`. La compilation stricte est ce qui
+   attrape l'oubli — c'est voulu.
+2. **La segmentation ne pose aucun diagnostic.** Sur un problème dont le
+   `task_type` vaut `segmentation`, l'interface n'affiche ni classe prédite,
+   ni confiance, ni probabilités : seulement les zones délimitées. La tête de
+   classification de ces modèles annonçait « NORMAL » avec une confiance de
+   1,000 sur des pneumonies manifestes — c'est une décision produit, pas un
+   détail d'affichage.
