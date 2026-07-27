@@ -29,6 +29,33 @@ env.bak/
 venv.bak/
 __pypackages__/
 
+# ── Node / npm (front `frontend/`) ────────────────────────────────────────
+# Les dépendances sont réinstallables à l'identique avec `npm ci` (le
+# package-lock.json, lui, EST versionné) et pèsent ~400 Mo : on ne les
+# committe jamais.
+node_modules/
+.npm/
+.pnpm-store/
+.yarn/cache/
+.yarn/install-state.gz
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+.eslintcache
+.stylelintcache
+
+# ── Angular ───────────────────────────────────────────────────────────────
+# Caches de l'outillage et sorties de compilation : tout est régénéré par
+# `ng build`. NB : `build/` et `dist/` sont déjà ignorés (section Python).
+.angular/
+frontend/dist/
+frontend/out-tsc/
+frontend/tmp/
+frontend/coverage/
+frontend/.history/
+*.tsbuildinfo
+
 # ── Secrets / config locale ───────────────────────────────────────────────
 .env
 .env.*
