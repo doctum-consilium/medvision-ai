@@ -20,6 +20,7 @@ import {
   withState,
 } from '@ngrx/signals';
 
+import { NOMS_ANALYSES } from '../i18n/libelles.fr';
 import { RegistreService } from '../api/registre.service';
 import type { ProblemeAvecModeles } from '../api/api.types';
 
@@ -61,7 +62,9 @@ export const RegistreStore = signalStore(
         const modeles = Object.values(entree.models);
         return {
           id,
-          label: entree.label,
+          // Nom français s'il existe, sinon le libellé du serveur (anglais) :
+          // mieux vaut un nom non traduit qu'une carte sans nom.
+          label: NOMS_ANALYSES[id] ?? entree.label,
           taskType: entree.task_type,
           classNames: entree.class_names,
           modelesDisponibles: modeles.filter((m) => m.available).length,

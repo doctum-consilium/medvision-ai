@@ -1,51 +1,128 @@
-<h2>{{ fr.accueil.titre }}</h2>
+<!-- ── Accroche ──────────────────────────────────────────────────────── -->
+<section class="hero apparait">
+  <!-- Le compteur n'apparaît que s'il annonce quelque chose. Une pastille
+       « 0 modèles prêts » mise en valeur ferait exactement l'inverse de ce
+       qu'on attend d'elle. -->
+  @if (store.totalDisponibles() > 0) {
+    <p class="hero-surtitre">
+      <span class="pastille-vive" aria-hidden="true"></span>
+      {{ store.totalDisponibles() }} {{ fr.accueil.modelesPrets }}
+    </p>
+  }
+  <h1 class="hero-titre">{{ fr.accueil.accroche }}</h1>
+  <p class="hero-intro">{{ fr.accueil.intro }}</p>
+</section>
 
-@if (store.chargement() && store.vide()) {
-  <!-- Squelettes plutôt qu'un « chargement… » : la page garde sa forme, donc
-       rien ne saute quand les vraies cartes arrivent. -->
-  <div class="grille">
-    @for (i of [1, 2, 3, 4]; track i) {
-      <div class="skeleton carte-squelette"></div>
-    }
-  </div>
-} @else if (store.cartes().length === 0) {
-  <p class="muted">{{ fr.accueil.aucunModele }}</p>
-} @else {
-  <div class="grille">
-    @for (carte of store.cartes(); track carte.id) {
-      <article class="card carte">
-        <header class="carte-entete">
-          <h3>{{ carte.label }}</h3>
+<!-- ── Parcours en trois temps ───────────────────────────────────────── -->
+<ol class="etapes apparait">
+  @for (etape of fr.accueil.etapes; track etape.titre; let i = $index) {
+    <li class="etape">
+      <span class="etape-numero" aria-hidden="true">{{ i + 1 }}</span>
+      <span class="etape-textes">
+        <strong>{{ etape.titre }}</strong>
+        <span class="muted">{{ etape.texte }}</span>
+      </span>
+    </li>
+  }
+</ol>
+
+<hr class="filet" />
+
+<!-- ── Types d'analyse ───────────────────────────────────────────────── -->
+<section>
+  <h2>{{ fr.accueil.titre }}</h2>
+  <p class="muted section-sous-titre">{{ fr.accueil.sousTitre }}</p>
+
+  @if (store.chargement() && store.vide()) {
+    <!-- Squelettes plutôt qu'un « chargement… » : la page garde sa forme, donc
+         rien ne saute quand les vraies cartes arrivent. -->
+    <div class="grille">
+      @for (i of [1, 2, 3, 4]; track i) {
+        <div class="skeleton carte-squelette"></div>
+      }
+    </div>
+  } @else if (store.cartes().length === 0) {
+    <p class="muted">{{ fr.accueil.aucunModele }}</p>
+  } @else {
+    <div class="grille">
+      @for (carte of store.cartes(); track carte.id) {
+        <article class="card card-vivante carte">
+          <div class="carte-haut">
+            <span class="carte-illustration" [attr.data-genre]="illustration(carte)" aria-hidden="true">
+              @switch (illustration(carte)) {
+                @case ('thorax') {
+                  <svg viewBox="0 0 32 32" width="26" height="26" fill="none" stroke="currentColor"
+                       stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M16 5v9" />
+                    <path d="M11 9c0 4-3 5-3 9 0 3.5 1 7 3.5 7 2 0 2.5-2 2.5-4v-8" />
+                    <path d="M21 9c0 4 3 5 3 9 0 3.5-1 7-3.5 7-2 0-2.5-2-2.5-4v-8" />
+                    <path d="M12 8h8" />
+                  </svg>
+                }
+                @case ('cerveau') {
+                  <!-- Silhouette de tête de profil avec un sillon : à 26 px,
+                       c'est nettement plus lisible qu'un cerveau détaillé,
+                       qui se réduit à une tache. -->
+                  <svg viewBox="0 0 32 32" width="26" height="26" fill="none" stroke="currentColor"
+                       stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M22.5 27v-3.4c0-1.4.7-2.4 1.8-3.3 2-1.7 3.2-4.2 3.2-7A9.8 9.8 0 0 0 17.6 3.5 9.9 9.9 0 0 0 7.8 12c-.2 1.6-.9 2.7-1.8 3.9-.5.7-.3 1.5.5 1.8l1.7.6v3.1c0 1.2 1 2.2 2.2 2.2h2.1v3.4" />
+                    <path d="M13 12.5c1.3-1.3 3-1.3 4.2 0 1.2 1.3 1.2 3 0 4.2-1 1-1.2 2-1.2 3.3" />
+                  </svg>
+                }
+                @default {
+                  <svg viewBox="0 0 32 32" width="26" height="26" fill="none" stroke="currentColor"
+                       stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">
+                    <rect x="4.5" y="4.5" width="23" height="23" rx="5" />
+                    <path d="M10 19c1.6-3.4 3.6-5.1 6-5.1s4.4 1.7 6 5.1c-1.6 2.6-3.6 3.9-6 3.9s-4.4-1.3-6-3.9Z"
+                          stroke-dasharray="2.6 2.4" />
+                  </svg>
+                }
+              }
+            </span>
+          </div>
+
+          <h3 class="carte-titre">{{ carte.label }}</h3>
+
+          <!-- La mention est placée SOUS le titre, pas à côté : dans la barre
+               du haut, elle passait sur deux lignes et décalait les titres
+               des cartes voisines. -->
           @if (carte.estSegmentation) {
-            <span class="badge badge-new">{{ fr.accueil.zonesSeules }}</span>
+            <p class="carte-mention">
+              <span class="badge badge-new">{{ fr.accueil.zonesSeules }}</span>
+            </p>
+          } @else {
+            <p class="muted carte-classes">
+              {{ carte.classNames.length }} {{ fr.accueil.categories }} —
+              {{ classesLisibles(carte) }}
+            </p>
           }
-        </header>
 
-        <p class="carte-compte">
-          <strong>{{ carte.modelesDisponibles }}</strong>
-          {{ fr.accueil.sur }} {{ carte.modelesTotal }} {{ fr.accueil.modelesPrets }}
-        </p>
+          <div class="carte-mesure">
+            <p class="carte-compte">
+              <strong>{{ carte.modelesDisponibles }}</strong>
+              <span class="muted">{{ compteDetail(carte) }}</span>
+            </p>
+            <div class="jauge">
+              <span [style.width.%]="partPrete(carte)"></span>
+            </div>
+          </div>
 
-        @if (!carte.estSegmentation) {
-          <p class="muted carte-classes">
-            {{ carte.classNames.length }} {{ fr.accueil.categories }} —
-            {{ carte.classNames.join(', ') }}
-          </p>
-        }
+          <div class="carte-actions">
+            @if (carte.modelesDisponibles === 0) {
+              <span class="badge badge-off">{{ fr.accueil.aucunModelePret }}</span>
+            } @else {
+              <a class="btn btn-primary" routerLink="/studio" [queryParams]="{ probleme: carte.id }">
+                {{ fr.accueil.analyser }}
+              </a>
+              <a class="btn btn-discret" routerLink="/comparaison" [queryParams]="{ probleme: carte.id }">
+                {{ fr.accueil.comparer }}
+              </a>
+            }
+          </div>
+        </article>
+      }
+    </div>
 
-        <div class="carte-actions">
-          <a
-            class="btn btn-primary"
-            routerLink="/studio"
-            [queryParams]="{ probleme: carte.id }"
-            [class.btn-desactive]="carte.modelesDisponibles === 0"
-            >{{ fr.accueil.analyser }}</a
-          >
-          <a class="btn" routerLink="/comparaison" [queryParams]="{ probleme: carte.id }">{{
-            fr.accueil.comparer
-          }}</a>
-        </div>
-      </article>
-    }
-  </div>
-}
+    <p class="note-confiance">{{ fr.accueil.confiance }}</p>
+  }
+</section>

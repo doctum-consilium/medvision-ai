@@ -16,7 +16,7 @@
 import { Component, computed, effect, inject, input, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 
-import { FR } from '../../core/i18n/libelles.fr';
+import { FR, nomClasse } from '../../core/i18n/libelles.fr';
 import { ImagesService } from '../../core/api/images.service';
 import { PredictionService } from '../../core/api/prediction.service';
 import { RegistreStore } from '../../core/state/registre.store';
@@ -45,6 +45,8 @@ interface ModeleChoisissable {
 })
 export class StudioComponent {
   readonly fr = FR;
+  /** Exposé au gabarit pour traduire les étiquettes venues de l'API. */
+  readonly nomClasse = nomClasse;
   readonly store = inject(RegistreStore);
   private readonly imagesApi = inject(ImagesService);
   private readonly predictionApi = inject(PredictionService);
@@ -259,9 +261,20 @@ export class StudioComponent {
     return exemple ? this.imagesApi.urlFichier(this.problemeId(), exemple.sample_id, false) : null;
   }
 
-  /** Étiquettes du graphe de probabilités d'un résultat. */
+  /** Étiquettes du graphe de probabilités d'un résultat, en français. */
   etiquettesProbabilites(resultat: ResultatModele): string[] {
-    return Object.keys(resultat.probabilities ?? {});
+    return Object.keys(resultat.probabilities ?? {}).map(nomClasse);
+  }
+
+  /**
+   * Classe prédite, traduite pour l'affichage.
+   *
+   * @param resultat Le résultat d'un modèle.
+   * @returns Le nom français de la classe, ou une chaîne vide s'il n'y en a
+   *   pas (cas des analyses de segmentation).
+   */
+  classePredite(resultat: ResultatModele): string {
+    return resultat.predicted_class ? nomClasse(resultat.predicted_class) : '';
   }
 
   /** Séries du graphe de probabilités d'un résultat. */

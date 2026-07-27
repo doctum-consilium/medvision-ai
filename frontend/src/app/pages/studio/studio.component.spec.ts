@@ -131,7 +131,10 @@ describe('StudioComponent', () => {
     expect(composant.estSegmentation()).toBeTrue();
     expect(texte).not.toContain(composant.fr.studio.prediction + ' :');
     expect(texte).not.toContain(composant.fr.studio.confiance + ' :');
+    // Ni l'étiquette brute du serveur, ni sa traduction : la classe ne doit
+    // apparaître sous AUCUNE forme sur une analyse de segmentation.
     expect(texte).not.toContain('NORMAL');
+    expect(texte).not.toContain('Normal');
     // Ce qu'on doit voir à la place : la surface, et la phrase de renvoi.
     expect(texte).toContain('12.3 %');
     expect(texte).toContain(composant.fr.studio.pasDeDiagnostic);
@@ -146,8 +149,11 @@ describe('StudioComponent', () => {
     ]);
     fixture.detectChanges();
 
+    // La classe est affichée TRADUITE : l'interface est francophone, elle ne
+    // doit pas renvoyer à l'utilisateur l'étiquette brute du jeu de données.
     const texte = (fixture.nativeElement as HTMLElement).textContent ?? '';
-    expect(texte).toContain('PNEUMONIA');
+    expect(texte).toContain('Pneumonie');
+    expect(texte).not.toContain('PNEUMONIA');
     expect(texte).toContain('87.0 %');
   });
 
@@ -163,7 +169,7 @@ describe('StudioComponent', () => {
 
     const texte = (fixture.nativeElement as HTMLElement).textContent ?? '';
     expect(texte).toContain('Modèle indisponible');
-    expect(texte).toContain('NORMAL');
+    expect(texte).toContain('Normal');
   });
 
   it('refuse de lancer une analyse tant qu’aucune image n’est fournie', async () => {

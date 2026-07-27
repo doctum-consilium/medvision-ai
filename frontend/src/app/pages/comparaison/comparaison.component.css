@@ -1,3 +1,14 @@
+.page-entete {
+  max-width: 58ch;
+  margin-bottom: 1.6rem;
+}
+
+.page-intro {
+  font-size: 1.02rem;
+  line-height: 1.65;
+  margin: 0.4rem 0 0;
+}
+
 .bloc {
   margin-top: 1.1rem;
 }
@@ -22,6 +33,33 @@
 .note {
   margin-top: 0.8rem;
 }
+
+/* Le bouton de tri occupe toute la cellule et n'a pas d'apparence propre :
+   visuellement c'est un en-tête de colonne, mais c'est bien un bouton pour
+   le clavier et les lecteurs d'écran. */
+.tri {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.34rem;
+  width: 100%;
+  padding: 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  color: inherit;
+  letter-spacing: inherit;
+  text-transform: inherit;
+  cursor: pointer;
+}
+
+.tri-fleche {
+  font-size: 0.72em;
+  opacity: 0.4;
+  transition: opacity 0.15s ease;
+}
+.tri:hover .tri-fleche { opacity: 0.85; }
+th[aria-sort="ascending"] .tri-fleche,
+th[aria-sort="descending"] .tri-fleche { opacity: 1; }
 
 .tableau-squelette {
   height: 220px;

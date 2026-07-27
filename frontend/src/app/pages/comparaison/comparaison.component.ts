@@ -149,6 +149,37 @@ export class ComparaisonComponent {
     this.sensTri.set(colonne === 'modele' ? 'asc' : 'desc');
   }
 
+  /**
+   * Annonce l'état de tri d'une colonne aux technologies d'assistance.
+   *
+   * @param colonne `modele` ou le nom d'une métrique.
+   * @returns La valeur de l'attribut `aria-sort` attendue par les lecteurs
+   *   d'écran : `ascending`, `descending`, ou `none` si ce n'est pas la
+   *   colonne de tri courante.
+   */
+  ariaTri(colonne: string): 'ascending' | 'descending' | 'none' {
+    if (this.colonneTri() !== colonne) {
+      return 'none';
+    }
+    return this.sensTri() === 'asc' ? 'ascending' : 'descending';
+  }
+
+  /**
+   * Flèche affichée dans l'en-tête d'une colonne.
+   *
+   * Les colonnes non triées gardent une flèche pâle plutôt que rien : sans
+   * elle, on ne devine pas qu'elles sont triables tant qu'on n'a pas cliqué.
+   *
+   * @param colonne `modele` ou le nom d'une métrique.
+   * @returns Le caractère à afficher.
+   */
+  flecheTri(colonne: string): string {
+    if (this.colonneTri() !== colonne) {
+      return '↕';
+    }
+    return this.sensTri() === 'asc' ? '▲' : '▼';
+  }
+
   /** Met en forme une métrique (trois décimales), ou un tiret si absente. */
   formaterMetrique(ligne: LigneModele, colonne: string): string {
     const valeur = ligne.metriques[colonne];

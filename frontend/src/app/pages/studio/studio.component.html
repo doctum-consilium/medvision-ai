@@ -1,8 +1,11 @@
-<h2>{{ fr.studio.titre }}</h2>
+<header class="page-entete apparait">
+  <h1>{{ fr.studio.titre }}</h1>
+  <p class="muted page-intro">{{ fr.studio.intro }}</p>
+</header>
 
 <!-- 1. Type d'analyse ─────────────────────────────────────────────────── -->
 <section class="card bloc">
-  <h3>{{ fr.studio.choisirProbleme }}</h3>
+  <h3 class="bloc-titre"><span class="bloc-numero" aria-hidden="true">1</span>{{ fr.studio.choisirProbleme }}</h3>
   <div class="choix">
     @for (carte of store.cartes(); track carte.id) {
       <button
@@ -24,7 +27,7 @@
 
 <!-- 2. Image ──────────────────────────────────────────────────────────── -->
 <section class="card bloc">
-  <h3>{{ fr.studio.source }}</h3>
+  <h3 class="bloc-titre"><span class="bloc-numero" aria-hidden="true">2</span>{{ fr.studio.source }}</h3>
 
   <div class="depot" (dragover)="$event.preventDefault()" (drop)="surDepot($event)">
     <label class="depot-zone">
@@ -66,7 +69,7 @@
           [class.btn-primary]="labelsChoisis().includes(classe)"
           (click)="basculerLabel(classe)"
         >
-          {{ classe }}
+          {{ nomClasse(classe) }}
         </button>
       }
     </div>
@@ -93,7 +96,7 @@
             [title]="exemple.display"
           >
             <img class="vignette" [src]="urlVignette(exemple)" [alt]="exemple.display" loading="lazy" />
-            <span class="vignette-label">{{ exemple.label }}</span>
+            <span class="vignette-label">{{ nomClasse(exemple.label) }}</span>
           </button>
         }
       </div>
@@ -121,7 +124,7 @@
 <!-- 3. Modèles ────────────────────────────────────────────────────────── -->
 <section class="card bloc">
   <div class="bloc-entete">
-    <h3>{{ fr.studio.modeles }}</h3>
+    <h3 class="bloc-titre"><span class="bloc-numero" aria-hidden="true">3</span>{{ fr.studio.modeles }}</h3>
     <div class="choix">
       <button type="button" class="btn" (click)="toutSelectionner()">
         {{ fr.studio.toutSelectionner }}
@@ -213,7 +216,7 @@
             }
           } @else {
             <p class="prediction">
-              {{ fr.studio.prediction }} : <strong>{{ resultat.predicted_class }}</strong>
+              {{ fr.studio.prediction }} : <strong>{{ classePredite(resultat) }}</strong>
             </p>
             <p class="muted">
               {{ fr.studio.confiance }} :
