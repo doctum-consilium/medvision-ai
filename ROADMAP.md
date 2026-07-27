@@ -97,7 +97,7 @@ lit un **clone périmé** des manifests (`Github/` au lieu de `GithubPerso/`), d
 fichier MedVision date du 26 avril. Tout hôte ajouté depuis lui est invisible. Ce n'est
 pas propre à MedVision : cela concerne toute la zone.
 
-**Images.** `medvision-web:2026-07-27` en production. `medvision-ai` reste en
+**Images.** `medvision-web:2026-07-27b` en production (refonte visuelle incluse). `medvision-ai` reste en
 `2026-07-18f`, inchangée.
 
 **Hors scope.** Le retrait de Streamlit (il reste en ligne tant que la parité n'est pas
