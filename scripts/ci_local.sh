@@ -100,6 +100,7 @@ MAINTAINED_SCRIPTS=(
   ".githooks/pre-commit"
   ".githooks/pre-push"
   "scripts/ci_local.sh"
+  "scripts/build-and-push-web.sh"
   "docker/entrypoint.sh"
 )
 if [ -z "$SHCHECK" ]; then
