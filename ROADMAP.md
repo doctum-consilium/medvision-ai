@@ -149,10 +149,11 @@ service. Et le cache DVC de l'API, présent en production depuis le 18 juillet, 
 décrit dans aucun manifeste : un redéploiement l'aurait supprimé en silence. Les deux
 sont corrigés dans le dépôt.
 
-**Une découverte d'infrastructure, à traiter.** La synchronisation DNS de la plateforme
-lit un **clone périmé** des manifests (`Github/` au lieu de `GithubPerso/`), dont le
-fichier MedVision date du 26 avril. Tout hôte ajouté depuis lui est invisible. Ce n'est
-pas propre à MedVision : cela concerne toute la zone.
+**Une découverte d'exploitation.** Le nouvel hôte n'a pas été créé automatiquement par
+la synchronisation DNS : la configuration de la plateforme tient une liste d'adresses
+écrite à la main, qui court-circuite la lecture des manifests. L'adresse y a été ajoutée.
+Le script ne touchant que les sous-domaines de cette liste, il n'y avait aucun risque de
+suppression ailleurs.
 
 **Images.** `medvision-web:2026-07-27b` en production (refonte visuelle incluse). `medvision-ai` reste en
 `2026-07-18f`, inchangée.
