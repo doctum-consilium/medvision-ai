@@ -41,6 +41,9 @@
             [class.btn-desactive]="carte.modelesDisponibles === 0"
             >{{ fr.accueil.analyser }}</a
           >
+          <a class="btn" routerLink="/comparaison" [queryParams]="{ probleme: carte.id }">{{
+            fr.accueil.comparer
+          }}</a>
         </div>
       </article>
     }
