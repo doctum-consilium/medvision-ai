@@ -5,6 +5,100 @@ Point de reprise canonique. Mis à jour à chaque session significative.
 
 ---
 
+## 🤝 HANDOFF 2026-07-27 — L'interface web Angular, complète et prête à déployer (NON DÉPLOYÉE)
+
+> **Rien n'est en production côté interface.** Tout le code est écrit, testé et commité en
+> local ; **aucune branche n'est poussée**, aucune image n'est construite, aucun DNS créé.
+> La production reste exactement telle qu'elle était : `medvision-ai:2026-07-18f`,
+> Streamlit sur `app.medvision`, API sur `api.medvision`.
+> Plan suivi : **`docs/plans/2026-07-27-medvision-front-angular-b1.md`**.
+
+### Où en est-on exactement
+
+| Élément | État |
+|---|---|
+| Écrans accueil / analyse / comparaison | Écrits, compilés, 18 tests verts |
+| Image nginx `medvision-web` | Dockerfile écrit, **construite et essayée en local** |
+| Manifests k3s (`medvision-web`, hôte `ui.medvision`) | Écrits et validés, **non appliqués** |
+| Dépôt ECR `platform/medvision-web` | **N'existe pas encore** — à créer |
+| Enregistrement DNS `ui.medvision` | **N'existe pas encore** |
+
+### Les six branches, dans l'ordre de fusion
+
+Chaînées : chacune est construite sur la précédente, donc elles se fusionnent d'affilée
+sans le moindre conflit — **mais dans cet ordre**, et en vérifiant que la base de chaque
+PR est bien `main` avant de la fusionner.
+
+Dépôt `medvision-ai` :
+
+1. `chore/gitignore-node-angular` — les 394 Mo de `node_modules` cessent d'être suivis
+2. `feat/front-socle-angular` — outillage, services, flux temps réel, écran d'accueil, CI front
+3. `feat/front-studio-prediction` — écran d'analyse et superpositions de segmentation
+4. `feat/front-comparaison-metriques` — écran de comparaison
+5. `build/docker-frontend` — image nginx et script de publication
+6. `docs/handoff-front-angular` — cette documentation
+
+Indépendante (aucun fichier commun, fusionnable quand on veut) :
+
+- `chore/tag-redeploiement-a-jour` — le tag par défaut du script de redéploiement était
+  resté sur `2026-07-18b` : le lancer sans argument après un incident aurait redéployé
+  une image antérieure aux correctifs du 18 juillet.
+
+Dépôt `k3s-fromOVHVps`, branche `deploy/medvision-web` (deux commits) :
+
+- la remise en phase du gabarit de déploiement avec la production ;
+- l'ajout du déploiement `medvision-web` et de l'hôte `ui.medvision`.
+
+### Pour mettre en ligne (dans cet ordre)
+
+```bash
+# 1. Créer le dépôt d'images (une seule fois)
+aws ecr create-repository --repository-name platform/medvision-web --region eu-west-3
+
+# 2. Construire et publier l'image
+cd medvision-ai && ./scripts/build-and-push-web.sh 2026-07-27
+
+# 3. Appliquer les manifests (jamais le fichier entier : il contient des secrets)
+kubectl -n medvision apply -f <(…)   # ou laisser passer par la voie habituelle du dépôt k3s
+
+# 4. Créer l'enregistrement DNS — TOUJOURS en simulation d'abord
+cd k3s-fromOVHVps
+DNS_SYNC_DRY_RUN=true scripts/ovh_dns_sync_k3s_zone.sh   # doit ne proposer QUE la création de ui.medvision
+```
+
+Le script de synchronisation DNS **supprime les enregistrements A qui divergent** et il
+n'y a pas de joker sur la zone : la simulation n'est pas facultative.
+
+### Trois choses à savoir avant de toucher à ce code
+
+1. **La segmentation ne pose aucun diagnostic.** Sur un type d'analyse dont le
+   `task_type` vaut `segmentation`, l'interface n'affiche ni classe prédite, ni confiance,
+   ni probabilités. Ces modèles annonçaient « NORMAL » avec une confiance de 1,000 sur des
+   pneumonies manifestes. Un test le verrouille
+   (`frontend/src/app/pages/studio/studio.component.spec.ts`) — s'il tombe un jour, c'est
+   une régression médicale, pas un détail d'affichage.
+2. **nginx résout l'adresse de l'API à chaque requête, et c'est voulu.** Écrite en dur,
+   elle est résolue une seule fois au démarrage : le pod refusait alors de démarrer si
+   l'API n'était pas encore joignable, et repartait en boucle. D'où le gabarit
+   `docker/nginx-frontend.conf.template` et sa variable — ne pas « simplifier » en
+   remettant l'adresse en dur.
+3. **Le pod de l'API monte désormais le volume des jeux d'images.** Il ne le faisait pas ;
+   seul Streamlit l'avait. Sans ce montage, la banque d'exemples de l'interface affiche
+   « aucune image » alors que les données sont bien sur le nœud.
+
+### Ce qui reste ouvert
+
+- Six brouillons de documentation non suivis traînent dans `docs/` (`handbook/`,
+  `manual/`, `04-`, `10-`, `15-`, `16-`). Ce sont des versions antérieures des chapitres
+  qui vivent maintenant dans `k3s-fromOVHVps/docs-portal/content/medvision/` — à
+  supprimer, la suppression ayant été refusée par le contrôle de permissions ce jour-là.
+- `medvision-ai` n'a **pas de projet Jira** (absent de `~/.claude/hooks/jira-repos.tsv`) :
+  aucun ticket n'a été créé pour ce chantier.
+- Le détecteur d'écarts du dépôt k3s signale encore trois divergences **sans rapport avec
+  MedVision** : `70-keycloak`, `80-products`, `90-monitoring`.
+
+---
+
 ## 🤝 HANDOFF 2026-07-18 — Les 17 modèles en production + API v2 + segmentation pure (DÉPLOYÉ)
 
 > **Image prod : `medvision-ai:2026-07-18f`** (api, streamlit et mlflow).

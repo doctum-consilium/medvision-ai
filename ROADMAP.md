@@ -1,10 +1,88 @@
 # ROADMAP
 
 ## Last Update
-2026-07-18 (les 17 modèles en production, API v2 + temps réel, segmentation pure)
+2026-07-27 (interface web Angular complète : accueil, analyse, comparaison — prête à déployer)
 
 ## Active Phase
 Phase 3 — Nouvelle interface (Angular) et portail de documentation
+
+## Execution Log — 2026-07-27
+
+### Phase 3b — L'interface web Angular, de bout en bout
+
+**Point de départ.** Depuis le 18 juillet, les dix-sept modèles tournaient en production
+et l'API v2 était complète — mais aucune interface moderne ne les montrait. Le front
+s'était arrêté au squelette généré par l'outil, sur une branche locale jamais poussée :
+liste de routes vide, page d'accueil de démonstration d'Angular. Accessoirement, le
+`.gitignore` du dépôt ne connaissait ni Node ni Angular, si bien que 394 Mo de
+dépendances traînaient en fichiers non suivis, à un `git add -A` distrait de finir dans
+l'historique.
+
+**Ce qui a été livré.**
+
+1. **Hygiène du dépôt.** Deux sections dans le `.gitignore` racine — les dépendances
+   installées par npm et les sorties de l'outillage Angular. Le trou de 394 Mo est fermé.
+2. **Le socle.** Une seule source de vérité, le registre des modèles, chargée au
+   démarrage puis tenue à jour par le flux temps réel du serveur : quand un modèle arrive
+   dans S3, l'interface se rafraîchit sans rechargement de page. Si le flux tombe, la
+   pastille de l'en-tête le dit et la reconnexion espace ses tentatives ; au retour, on
+   demande d'abord la version du registre et on ne retélécharge que si elle a changé.
+3. **L'écran d'analyse.** Choix du type d'analyse, image déposée ou prise dans la banque
+   d'exemples, plusieurs modèles interrogés **en une seule requête**, résultats côte à
+   côte. Une erreur sur un modèle reste dans sa carte sans faire tomber les autres.
+   Sur les analyses de segmentation, **aucune prédiction ni confiance n'est affichée** :
+   ces modèles annonçaient « NORMAL » avec une confiance de 1,000 sur des pneumonies
+   manifestes. Un test verrouille cette règle — s'il tombe, c'est qu'une régression
+   médicalement trompeuse est revenue.
+4. **Les zones réglables sans le serveur.** Le masque arrive en probabilités, pas en noir
+   et blanc : le curseur de sensibilité se contente de re-comparer ces valeurs à un seuil
+   dans le navigateur. Bouger le curseur est instantané et ne coûte aucune inférence.
+5. **L'écran de comparaison.** Tableau triable et graphe en barres. Une mesure absente
+   s'affiche en tiret, jamais en zéro, et son modèle reste en fin de classement quel que
+   soit le sens du tri — les rapports d'entraînement ne sont pas toujours tirés sur le
+   pod, et un excellent modèle sans rapport ne doit pas passer pour le pire du lot.
+6. **L'image et le déploiement.** Une image nginx autonome de 49 Mo, séparée de l'image
+   d'inférence pour que retoucher un bouton n'oblige pas à reconstruire PyTorch. Manifests
+   k3s : déploiement `medvision-web`, hôte `ui.medvision`, Streamlit conservé sur
+   `app.medvision`.
+
+**Deux défauts trouvés en essayant, pas en relisant.**
+
+- **nginx serait parti en boucle de redémarrage.** Il résout l'adresse de l'API une seule
+  fois, au démarrage : écrite en dur, elle faisait refuser le lancement dès que l'API
+  n'était pas encore joignable. La configuration est devenue un gabarit, l'adresse passe
+  par une variable et un résolveur DNS, donc elle est relue à chaque requête. Vérifié
+  sans aucune API joignable : le conteneur démarre, sert l'application, et répond 502 sur
+  `/api` au lieu de mourir.
+- **Le pod de l'API ne montait pas les jeux d'images.** Seul Streamlit le faisait. La
+  banque d'exemples de la nouvelle interface aurait affiché « aucune image » alors que
+  les données sont bien sur le nœud. Corrigé dans les manifests.
+
+**Une dérive corrigée au passage.** Le gabarit de déploiement de MedVision était resté à
+l'état d'avant le 18 juillet : reconstruire le cluster à partir de lui aurait rejoué les
+incidents déjà corrigés — évictions de pods faute de stockage éphémère, `ImagePullBackOff`
+faute de secret de tirage, MLflow en attente sur le mauvais nœud. Vérifié contre le
+cluster réel, puis régénéré depuis le manifeste rendu.
+
+**Choix d'outillage assumé.** Tailwind CSS, Chart.js et `@ngrx/signals` sont utilisés :
+ils pèsent sur le bundle envoyé au navigateur, pas sur le nœud qui ne sert que des
+fichiers statiques. Le design system maison reste la source des couleurs — Tailwind les
+consomme, si bien que la bascule clair/sombre repeint aussi les classes utilitaires, au
+runtime et sans recompilation.
+
+**Vérifications.** Compilation stricte verte ; dix-huit tests unitaires verts ; image
+Docker construite et lancée en local (accueil, analyse et comparaison répondent 200,
+en-têtes de cache conformes) ; manifests analysés sans erreur, détecteur d'écarts du
+dépôt silencieux sur MedVision. Premier affichage : 296 ko bruts, 86 ko transférés —
+Chart.js et les écrans lourds sont chargés à la demande.
+
+**Images.** `medvision-web:2026-07-27` (à construire et pousser).
+`medvision-ai` reste en `2026-07-18f`, inchangée.
+
+**Hors scope.** Le retrait de Streamlit (il reste en ligne tant que la parité n'est pas
+constatée), l'authentification Keycloak sur l'interface, l'activation du surveillant DVC,
+la réactivation des deux `convnexttiny` (leur ONNX est invalide dès l'export) et
+l'anglais.
 
 ## Execution Log — 2026-07-18
 
