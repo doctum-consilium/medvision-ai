@@ -43,6 +43,7 @@ export class AppComponent {
   readonly onglets: Onglet[] = [
     { chemin: '', libelle: FR.nav.accueil },
     { chemin: 'studio', libelle: FR.nav.studio },
+    { chemin: 'comparaison', libelle: FR.nav.comparaison },
   ];
 
   /** État de la connexion temps réel, pour la pastille de l'en-tête. */

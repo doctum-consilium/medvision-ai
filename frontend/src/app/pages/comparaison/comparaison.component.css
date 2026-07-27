@@ -1,0 +1,28 @@
+.bloc {
+  margin-top: 1.1rem;
+}
+
+.choix {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+}
+
+/* Hauteur fixe : un canvas responsive sans hauteur grandit indéfiniment. */
+.graphe {
+  height: 260px;
+}
+
+/* Beaucoup de métriques = tableau large. Il défile DANS sa carte plutôt que
+   d'imposer un défilement horizontal à toute la page. */
+.defilant {
+  overflow-x: auto;
+}
+
+.note {
+  margin-top: 0.8rem;
+}
+
+.tableau-squelette {
+  height: 220px;
+}

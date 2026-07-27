@@ -1,0 +1,84 @@
+<h2>{{ fr.comparaison.titre }}</h2>
+<p class="muted">{{ fr.comparaison.sousTitre }}</p>
+
+<section class="card bloc">
+  <div class="choix">
+    @for (carte of store.cartes(); track carte.id) {
+      <button
+        type="button"
+        class="btn"
+        [class.btn-primary]="carte.id === problemeId()"
+        (click)="choisirProbleme(carte.id)"
+      >
+        {{ carte.label }}
+      </button>
+    }
+  </div>
+</section>
+
+@if (chargement()) {
+  <div class="skeleton bloc tableau-squelette"></div>
+} @else {
+  @if (!aucuneMesure()) {
+    <section class="card bloc">
+      <div class="graphe">
+        <app-graphe-barres
+          [etiquettes]="etiquettesGraphe()"
+          [series]="seriesGraphe()"
+          [maximum]="1"
+          [horizontal]="etiquettesGraphe().length > 5"
+          [descriptionAccessible]="fr.comparaison.titre"
+        />
+      </div>
+    </section>
+  }
+
+  <section class="card bloc defilant">
+    <table class="table">
+      <thead>
+        <tr>
+          <th scope="col" (click)="trierPar('modele')">
+            {{ fr.comparaison.modele }}
+            @if (colonneTri() === 'modele') {
+              <span aria-hidden="true">{{ sensTri() === 'asc' ? '▲' : '▼' }}</span>
+            }
+          </th>
+          <th scope="col">{{ fr.comparaison.etat }}</th>
+          <th scope="col">{{ fr.comparaison.taille }}</th>
+          <th scope="col">{{ fr.comparaison.maj }}</th>
+          @for (colonne of colonnesMetriques(); track colonne) {
+            <th scope="col" (click)="trierPar(colonne)">
+              {{ colonne }}
+              @if (colonneTri() === colonne) {
+                <span aria-hidden="true">{{ sensTri() === 'asc' ? '▲' : '▼' }}</span>
+              }
+            </th>
+          }
+        </tr>
+      </thead>
+      <tbody>
+        @for (ligne of lignes(); track ligne.modele) {
+          <tr>
+            <td>{{ ligne.modele }}</td>
+            <td>
+              <span class="badge" [class.badge-ok]="ligne.disponible" [class.badge-off]="!ligne.disponible">
+                {{ ligne.disponible ? fr.comparaison.pret : fr.comparaison.absent }}
+              </span>
+            </td>
+            <td class="mono">{{ formaterTaille(ligne) }}</td>
+            <td class="mono">{{ ligne.misAJour ?? '—' }}</td>
+            @for (colonne of colonnesMetriques(); track colonne) {
+              <td class="mono">{{ formaterMetrique(ligne, colonne) }}</td>
+            }
+          </tr>
+        }
+      </tbody>
+    </table>
+
+    @if (aucuneMesure()) {
+      <!-- Absence de mesures ≠ panne : seuls les modèles sont tirés au
+           démarrage du pod, pas toujours leurs rapports d'entraînement. -->
+      <p class="muted note">{{ fr.comparaison.aucuneMesure }}</p>
+    }
+  </section>
+}

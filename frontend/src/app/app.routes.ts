@@ -23,5 +23,11 @@ export const routes: Routes = [
     loadComponent: () =>
       import('./pages/studio/studio.component').then((m) => m.StudioComponent),
   },
+  {
+    path: 'comparaison',
+    title: 'MedVision AI — Comparer les modèles',
+    loadComponent: () =>
+      import('./pages/comparaison/comparaison.component').then((m) => m.ComparaisonComponent),
+  },
   { path: '**', redirectTo: '' },
 ];
