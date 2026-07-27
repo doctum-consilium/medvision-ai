@@ -17,5 +17,11 @@ export const routes: Routes = [
     loadComponent: () =>
       import('./pages/accueil/accueil.component').then((m) => m.AccueilComponent),
   },
+  {
+    path: 'studio',
+    title: 'MedVision AI — Analyser une image',
+    loadComponent: () =>
+      import('./pages/studio/studio.component').then((m) => m.StudioComponent),
+  },
   { path: '**', redirectTo: '' },
 ];

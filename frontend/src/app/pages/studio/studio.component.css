@@ -1,0 +1,210 @@
+/* Mise en page du studio. Un bloc = une étape, dans l'ordre où l'on décide :
+   quoi analyser, sur quelle image, avec quels modèles. */
+
+.bloc {
+  margin-top: 1.1rem;
+}
+
+.bloc-entete {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.8rem;
+  flex-wrap: wrap;
+}
+
+.choix {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+  margin-top: 0.5rem;
+}
+
+.avertissement {
+  margin-top: 0.75rem;
+  padding: 0.6rem 0.8rem;
+  border-radius: var(--radius-sm);
+  background: var(--warn-soft);
+  color: var(--warn);
+  font-weight: 600;
+}
+
+/* ── Dépôt d'image ──────────────────────────────────────────────────── */
+
+.depot {
+  display: flex;
+  gap: 1rem;
+  align-items: stretch;
+  flex-wrap: wrap;
+  margin-top: 0.6rem;
+}
+
+.depot-zone {
+  flex: 1 1 260px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 0.25rem;
+  min-height: 116px;
+  padding: 1rem;
+  text-align: center;
+  border: 2px dashed var(--line);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: border-color 0.15s ease, background 0.15s ease;
+}
+
+.depot-zone:hover {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}
+
+.apercu {
+  width: 148px;
+  height: 148px;
+  object-fit: contain;
+  border-radius: var(--radius-sm);
+  background: var(--surface-2);
+  border: 1px solid var(--line);
+}
+
+/* ── Banque d'exemples ──────────────────────────────────────────────── */
+
+.banque-titre {
+  margin-top: 1.2rem;
+}
+
+.filtres {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.recherche {
+  max-width: 320px;
+}
+
+.vignettes {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(104px, 1fr));
+  gap: 0.55rem;
+  margin-top: 0.7rem;
+}
+
+.vignette-bouton {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  padding: 0.25rem;
+  border: 2px solid transparent;
+  border-radius: var(--radius-sm);
+  background: none;
+  cursor: pointer;
+  font: inherit;
+  color: var(--ink-muted);
+}
+
+.vignette-bouton:hover {
+  border-color: var(--line);
+}
+
+.vignette-choisie {
+  border-color: var(--accent);
+  color: var(--accent-strong);
+}
+
+.vignette {
+  width: 100%;
+  aspect-ratio: 1;
+  object-fit: cover;
+  border-radius: var(--radius-sm);
+  background: var(--surface-2);
+}
+
+.vignette-label {
+  font-size: 0.72rem;
+  text-align: center;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.pagination {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  margin-top: 0.8rem;
+}
+
+/* ── Modèles ────────────────────────────────────────────────────────── */
+
+.modeles {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(210px, 1fr));
+  gap: 0.4rem;
+  margin-top: 0.7rem;
+}
+
+.modele {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  padding: 0.4rem 0.55rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+}
+
+.modele-absent {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.lancer {
+  margin-top: 0.9rem;
+}
+
+/* ── Résultats ──────────────────────────────────────────────────────── */
+
+.reglages {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 1.2rem;
+  margin-top: 0.7rem;
+}
+
+.reglage {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-weight: 600;
+  font-size: 0.88rem;
+}
+
+.reglage input[type='range'] {
+  accent-color: var(--accent);
+  width: 150px;
+}
+
+.resultats {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 0.9rem;
+  margin-top: 0.8rem;
+}
+
+.resultat h4 {
+  margin-bottom: 0.55rem;
+}
+
+.prediction strong {
+  color: var(--accent-strong);
+  font-size: 1.12rem;
+}
+
+/* Hauteur fixe : sans elle, un canvas responsive grandit indéfiniment. */
+.graphe {
+  height: 168px;
+  margin-top: 0.7rem;
+}

@@ -32,6 +32,16 @@
             {{ carte.classNames.join(', ') }}
           </p>
         }
+
+        <div class="carte-actions">
+          <a
+            class="btn btn-primary"
+            routerLink="/studio"
+            [queryParams]="{ probleme: carte.id }"
+            [class.btn-desactive]="carte.modelesDisponibles === 0"
+            >{{ fr.accueil.analyser }}</a
+          >
+        </div>
       </article>
     }
   </div>

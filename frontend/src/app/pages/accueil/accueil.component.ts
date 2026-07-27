@@ -8,6 +8,7 @@
  * modèle est simplement en cours d'arrivée.
  */
 import { Component, inject } from '@angular/core';
+import { RouterLink } from '@angular/router';
 
 import { FR } from '../../core/i18n/libelles.fr';
 import { RegistreStore } from '../../core/state/registre.store';
@@ -15,6 +16,7 @@ import { RegistreStore } from '../../core/state/registre.store';
 @Component({
   selector: 'app-accueil',
   standalone: true,
+  imports: [RouterLink],
   templateUrl: './accueil.component.html',
   styleUrl: './accueil.component.css',
 })
