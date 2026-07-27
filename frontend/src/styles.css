@@ -56,146 +56,309 @@
 }
 
 :root {
-  /* Vert médical profond sur ivoire, accent corail pour les alertes. */
-  --bg: #f6f8f5;
+  /*
+   * Palette. Le fond n'est pas blanc mais un ivoire très légèrement chaud :
+   * une interface médicale entièrement blanche paraît froide, et fatigue
+   * l'œil à côté d'images en niveaux de gris. Le vert profond dit le soin
+   * sans virer à l'hôpital ; l'ambre sert aux nuances, jamais à l'alarme.
+   */
+  --bg: #f7f6f2;
+  --bg-voile: #eef2ec;
   --surface: #ffffff;
-  --surface-2: #f2f6f1;
-  --line: #dbe3d9;
-  --ink: #16211b;
-  --ink-muted: #5b6a60;
-  --accent: #0f7a66;
-  --accent-strong: #0a5c4d;
-  --accent-soft: #e2f1ec;
-  --accent-2: #c65d2f;
-  --danger: #b3372f;
-  --danger-soft: #f9e9e7;
-  --warn: #a06a00;
-  --warn-soft: #fdf3df;
-  --shadow: 0 10px 30px rgba(22, 45, 38, 0.08);
-  --radius: 14px;
-  --radius-sm: 9px;
-  --font: "Inter", "Segoe UI", system-ui, -apple-system, sans-serif;
+  --surface-2: #f4f5f0;
+  --surface-3: #eceee6;
+  --line: #e0e2d8;
+  --line-forte: #cdd2c4;
+  --ink: #17211c;
+  --ink-doux: #3c4a42;
+  --ink-muted: #6a7770;
+  --accent: #14705f;
+  --accent-strong: #0b5548;
+  --accent-clair: #2f9c85;
+  --accent-soft: #e4f1ec;
+  --accent-2: #b5652f;
+  --danger: #a63a30;
+  --danger-soft: #faeae7;
+  --warn: #8a6410;
+  --warn-soft: #fbf2dd;
+
+  /*
+   * Trois profondeurs plutôt qu'une seule ombre : une carte posée, une carte
+   * survolée, un élément flottant. Sans cette gradation, tout paraît sur le
+   * même plan — c'est ce qui donne l'impression de tableau de bord austère.
+   */
+  --ombre-douce: 0 1px 2px rgba(23, 33, 28, 0.04), 0 2px 8px rgba(23, 33, 28, 0.04);
+  --ombre: 0 2px 4px rgba(23, 33, 28, 0.05), 0 10px 28px rgba(23, 33, 28, 0.07);
+  --ombre-haute: 0 8px 16px rgba(23, 33, 28, 0.08), 0 24px 48px rgba(23, 33, 28, 0.1);
+  --shadow: var(--ombre); /* compatibilité : ancien nom */
+
+  --radius-xl: 22px;
+  --radius: 15px;
+  --radius-sm: 10px;
+
+  --font: "Inter", "Segoe UI", system-ui, -apple-system, "Helvetica Neue", sans-serif;
+  /* Chiffres alignés en colonnes : indispensable pour lire des mesures. */
+  --font-chiffres: ui-monospace, "SF Mono", "Cascadia Mono", "Roboto Mono", monospace;
 }
 
 :root[data-theme="dark"] {
-  --bg: #0e1512;
-  --surface: #17221d;
-  --surface-2: #1c2822;
-  --line: #2a3a32;
-  --ink: #e8efe9;
-  --ink-muted: #93a59a;
-  --accent: #35b598;
-  --accent-strong: #56cbb0;
+  /* Sombre chaud, pas noir : le contraste reste franc sans être dur. */
+  --bg: #10150f;
+  --bg-voile: #151c16;
+  --surface: #1a211c;
+  --surface-2: #202821;
+  --surface-3: #273028;
+  --line: #2e382f;
+  --line-forte: #3d4a3e;
+  --ink: #e9efe7;
+  --ink-doux: #c2cdc1;
+  --ink-muted: #92a094;
+  --accent: #3aa98f;
+  --accent-strong: #5ec7ab;
+  --accent-clair: #7ed6bd;
   --accent-soft: #16302a;
-  --accent-2: #e08a5e;
-  --danger: #e07a70;
+  --accent-2: #dd9a63;
+  --danger: #e08278;
   --danger-soft: #35201d;
-  --warn: #e0b25e;
-  --warn-soft: #33290f;
-  --shadow: 0 10px 30px rgba(0, 0, 0, 0.35);
+  --warn: #dcb265;
+  --warn-soft: #322912;
+
+  --ombre-douce: 0 1px 2px rgba(0, 0, 0, 0.3), 0 2px 8px rgba(0, 0, 0, 0.25);
+  --ombre: 0 2px 4px rgba(0, 0, 0, 0.35), 0 10px 28px rgba(0, 0, 0, 0.35);
+  --ombre-haute: 0 8px 16px rgba(0, 0, 0, 0.4), 0 24px 48px rgba(0, 0, 0, 0.45);
+  --shadow: var(--ombre);
 }
 
 * { box-sizing: border-box; }
 
 html, body {
   margin: 0;
-  background: var(--bg);
+  /*
+   * Deux halos très diffus plutôt qu'un aplat : le fond respire, sans
+   * jamais concurrencer les images médicales qui, elles, sont grises.
+   */
+  background:
+    radial-gradient(1100px 520px at 12% -8%, var(--bg-voile) 0%, transparent 62%),
+    radial-gradient(900px 460px at 96% 4%, var(--accent-soft) 0%, transparent 58%),
+    var(--bg);
+  background-attachment: fixed;
   color: var(--ink);
   font-family: var(--font);
-  font-size: 15.5px;
-  line-height: 1.55;
+  font-size: 16px;
+  line-height: 1.62;
   -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
-h1, h2, h3, h4 { line-height: 1.2; margin: 0 0 0.5rem; }
-h1 { font-size: 1.65rem; letter-spacing: -0.02em; }
-h2 { font-size: 1.22rem; }
-h3 { font-size: 1.02rem; }
-p  { margin: 0.3rem 0; }
+/*
+ * Titres nettement plus affirmés que le corps de texte, et resserrés :
+ * c'est ce contraste d'échelle qui distingue une page composée d'une page
+ * simplement remplie.
+ */
+h1, h2, h3, h4 { line-height: 1.18; margin: 0 0 0.5rem; letter-spacing: -0.021em; }
+h1 { font-size: clamp(1.9rem, 1.3rem + 2.2vw, 2.9rem); font-weight: 700; }
+h2 { font-size: clamp(1.3rem, 1.1rem + 0.8vw, 1.65rem); font-weight: 650; }
+h3 { font-size: 1.08rem; font-weight: 650; }
+h4 { font-size: 0.98rem; font-weight: 650; }
+p  { margin: 0.35rem 0; }
 a  { color: var(--accent); text-decoration: none; }
 a:hover { text-decoration: underline; }
+
+/* Anneau de focus visible au clavier UNIQUEMENT : accessible sans polluer
+   l'affichage à la souris. */
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+/* Respecte les personnes sensibles au mouvement. */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
 
 /* ── Primitives ─────────────────────────────────────────────────────── */
 
 .card {
+  position: relative;
   background: var(--surface);
   border: 1px solid var(--line);
   border-radius: var(--radius);
-  padding: 1.05rem 1.15rem;
-  box-shadow: var(--shadow);
+  padding: 1.3rem 1.4rem;
+  box-shadow: var(--ombre-douce);
+  transition: box-shadow 0.22s ease, border-color 0.22s ease, transform 0.22s ease;
+}
+
+/* Carte qu'on peut « prendre » : elle se soulève au survol. Réservé aux
+   cartes réellement cliquables — sinon le mouvement ment sur l'affordance. */
+.card-vivante:hover {
+  transform: translateY(-3px);
+  box-shadow: var(--ombre-haute);
+  border-color: var(--line-forte);
 }
 
 .btn {
   display: inline-flex;
   align-items: center;
-  gap: 0.45rem;
-  border: 1px solid var(--line);
+  justify-content: center;
+  gap: 0.5rem;
+  border: 1px solid var(--line-forte);
   background: var(--surface);
-  color: var(--ink);
+  color: var(--ink-doux);
   border-radius: 999px;
-  padding: 0.48rem 1rem;
+  padding: 0.6rem 1.15rem;
   font: inherit;
   font-weight: 600;
+  font-size: 0.94rem;
   cursor: pointer;
-  transition: transform 0.12s ease, border-color 0.15s ease;
+  box-shadow: var(--ombre-douce);
+  transition: transform 0.16s ease, border-color 0.16s ease,
+    box-shadow 0.16s ease, background 0.16s ease, color 0.16s ease;
 }
-.btn:hover:not(:disabled) { transform: translateY(-1px); border-color: var(--accent); }
-.btn:disabled { opacity: 0.45; cursor: not-allowed; }
+.btn:hover:not(:disabled) {
+  transform: translateY(-1px);
+  border-color: var(--accent);
+  color: var(--accent-strong);
+  box-shadow: var(--ombre);
+}
+.btn:active:not(:disabled) { transform: translateY(0); }
+.btn:disabled { opacity: 0.42; cursor: not-allowed; box-shadow: none; }
+
 .btn-primary {
-  background: linear-gradient(135deg, var(--accent) 0%, var(--accent-strong) 100%);
+  background: linear-gradient(140deg, var(--accent-clair) -10%, var(--accent) 45%, var(--accent-strong) 100%);
   border-color: transparent;
-  color: #f2fff9;
+  color: #f4fffb;
 }
+.btn-primary:hover:not(:disabled) { color: #ffffff; border-color: transparent; }
+
+/* Bouton discret pour les actions secondaires : sans cadre tant qu'on ne
+   le survole pas, il n'entre pas en concurrence avec l'action principale. */
+.btn-discret {
+  background: transparent;
+  border-color: transparent;
+  box-shadow: none;
+  color: var(--ink-muted);
+}
+.btn-discret:hover:not(:disabled) { background: var(--surface-2); box-shadow: none; }
 
 .badge {
   display: inline-flex;
   align-items: center;
-  gap: 0.3rem;
+  gap: 0.34rem;
   border-radius: 999px;
-  padding: 0.12rem 0.6rem;
-  font-size: 0.77rem;
-  font-weight: 700;
+  padding: 0.2rem 0.68rem;
+  font-size: 0.78rem;
+  font-weight: 650;
+  letter-spacing: 0.005em;
+  border: 1px solid transparent;
 }
-.badge-ok    { background: var(--accent-soft); color: var(--accent-strong); }
-.badge-off   { background: var(--surface-2); color: var(--ink-muted); }
-.badge-new   { background: var(--warn-soft); color: var(--warn); }
-.badge-error { background: var(--danger-soft); color: var(--danger); }
+.badge-ok    { background: var(--accent-soft); color: var(--accent-strong); border-color: color-mix(in srgb, var(--accent) 22%, transparent); }
+.badge-off   { background: var(--surface-2); color: var(--ink-muted); border-color: var(--line); }
+.badge-new   { background: var(--warn-soft); color: var(--warn); border-color: color-mix(in srgb, var(--warn) 24%, transparent); }
+.badge-error { background: var(--danger-soft); color: var(--danger); border-color: color-mix(in srgb, var(--danger) 24%, transparent); }
 
 .input {
   background: var(--surface);
-  border: 1px solid var(--line);
+  border: 1px solid var(--line-forte);
   color: var(--ink);
-  border-radius: var(--radius-sm);
-  padding: 0.48rem 0.7rem;
+  border-radius: 999px;
+  padding: 0.6rem 1rem;
   font: inherit;
   width: 100%;
+  transition: border-color 0.16s ease, box-shadow 0.16s ease;
 }
-.input:focus { outline: 2px solid var(--accent); outline-offset: 1px; }
+.input::placeholder { color: var(--ink-muted); }
+.input:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 16%, transparent);
+}
+
+/* Jauge de lecture : combien de modèles sont prêts, vu d'un coup d'œil. */
+.jauge {
+  height: 6px;
+  border-radius: 999px;
+  background: var(--surface-3);
+  overflow: hidden;
+}
+.jauge > span {
+  display: block;
+  height: 100%;
+  border-radius: 999px;
+  background: linear-gradient(90deg, var(--accent-clair), var(--accent));
+  transition: width 0.6s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+/* Filet de séparation qui s'efface à ses extrémités — moins sec qu'un trait. */
+.filet {
+  height: 1px;
+  border: 0;
+  margin: 1.6rem 0;
+  background: linear-gradient(90deg, transparent, var(--line-forte), transparent);
+}
 
 .table { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; }
-.table th, .table td { text-align: left; padding: 0.52rem 0.65rem; border-bottom: 1px solid var(--line); }
+.table th, .table td {
+  text-align: left;
+  padding: 0.72rem 0.8rem;
+  border-bottom: 1px solid var(--line);
+}
 .table th {
   color: var(--ink-muted);
-  font-size: 0.76rem;
+  font-size: 0.74rem;
   text-transform: uppercase;
-  letter-spacing: 0.06em;
+  letter-spacing: 0.07em;
+  font-weight: 700;
   cursor: pointer;
   user-select: none;
+  white-space: nowrap;
 }
+.table th:hover { color: var(--accent-strong); }
+.table tbody tr { transition: background 0.14s ease; }
 .table tbody tr:hover { background: var(--surface-2); }
+.table tbody tr:last-child td { border-bottom: 0; }
 
 .muted { color: var(--ink-muted); }
-.mono  { font-variant-numeric: tabular-nums; }
+.mono  { font-family: var(--font-chiffres); font-variant-numeric: tabular-nums; font-size: 0.92em; }
 
 /* Barres de probabilité — plus lisibles qu'un graphe pour 2 à 4 classes. */
-.prob-bar { height: 10px; border-radius: 999px; background: var(--surface-2); overflow: hidden; }
+.prob-bar { height: 9px; border-radius: 999px; background: var(--surface-3); overflow: hidden; }
 .prob-bar > span {
   display: block;
   height: 100%;
   border-radius: 999px;
-  background: linear-gradient(90deg, var(--accent) 0%, var(--accent-strong) 100%);
-  transition: width 0.4s ease;
+  background: linear-gradient(90deg, var(--accent-clair) 0%, var(--accent) 60%, var(--accent-strong) 100%);
+  transition: width 0.5s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+/* Chargement : un reflet qui balaie, plutôt qu'un clignotement. Le premier
+   suggère que quelque chose arrive, le second que quelque chose ne va pas. */
+@keyframes balayage { from { background-position: 200% 0; } to { background-position: -200% 0; } }
+.skeleton {
+  border-radius: var(--radius-sm);
+  background: linear-gradient(90deg, var(--surface-2) 25%, var(--surface-3) 50%, var(--surface-2) 75%);
+  background-size: 200% 100%;
+  animation: balayage 1.6s linear infinite;
 }
 
 @keyframes pulse { 0%, 100% { opacity: 0.45; } 50% { opacity: 0.9; } }
-.skeleton { border-radius: var(--radius-sm); background: var(--surface-2); animation: pulse 1.4s ease-in-out infinite; }
+
+/*
+ * Apparition en douceur du contenu d'un écran.
+ *
+ * PAS de `animation-fill-mode: both` ici, volontairement : ce mode applique
+ * l'état de départ AVANT que l'animation ne démarre, donc un contenu resté
+ * à `opacity: 0` si l'animation ne tourne pas (onglet en arrière-plan, moteur
+ * de rendu qui la saute, capture automatisée…). Sans fill-mode, le contenu
+ * est visible par défaut et l'animation ne fait que l'embellir — un défaut
+ * d'animation ne peut plus cacher la page.
+ */
+@keyframes apparition {
+  from { opacity: 0; transform: translateY(10px); }
+  to   { opacity: 1; transform: none; }
+}
+.apparait { animation: apparition 0.5s cubic-bezier(0.22, 1, 0.36, 1); }

@@ -1,55 +1,219 @@
 /*
- * Grille de cartes qui se réorganise seule : `auto-fill` + `minmax` évitent
- * d'écrire des points de rupture à la main, et les cartes restent lisibles
- * du téléphone au grand écran.
+ * Accueil. La page suit un rythme délibéré : accroche large et aérée, puis
+ * parcours en trois temps, puis grille dense. Cette alternance de densité est
+ * ce qui distingue une page composée d'une simple liste de blocs.
  */
+
+/* ── Accroche ────────────────────────────────────────────────────────── */
+
+.hero {
+  max-width: 52ch;
+  padding: 1.4rem 0 0.4rem;
+}
+
+.hero-surtitre {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin: 0 0 1rem;
+  padding: 0.34rem 0.85rem;
+  border-radius: 999px;
+  background: var(--accent-soft);
+  border: 1px solid color-mix(in srgb, var(--accent) 20%, transparent);
+  color: var(--accent-strong);
+  font-size: 0.82rem;
+  font-weight: 650;
+}
+
+.pastille-vive {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--accent);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 20%, transparent);
+}
+
+/*
+ * Le dégradé donne au titre une matière que le reste de la page n'a pas,
+ * donc une hiérarchie immédiate. Mais il repose sur `color: transparent` :
+ * si le dégradé ne peint pas, le titre DISPARAÎT purement et simplement.
+ * D'où la couleur pleine par défaut, et le dégradé seulement là où le
+ * navigateur sait faire — un titre un peu moins joli vaut mieux qu'un titre
+ * absent.
+ */
+.hero-titre {
+  margin: 0 0 0.85rem;
+  color: var(--ink);
+}
+
+@supports ((background-clip: text) or (-webkit-background-clip: text)) {
+  .hero-titre {
+    background: linear-gradient(120deg, var(--ink) 20%, var(--accent-strong) 78%, var(--accent) 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+  }
+}
+
+.hero-intro {
+  margin: 0;
+  font-size: 1.08rem;
+  line-height: 1.68;
+  color: var(--ink-doux);
+}
+
+/* ── Parcours en trois temps ─────────────────────────────────────────── */
+
+.etapes {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(232px, 1fr));
+  gap: 0.9rem;
+  margin: 2rem 0 0;
+  padding: 0;
+  list-style: none;
+  counter-reset: etape;
+}
+
+.etape {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.8rem;
+  padding: 0.95rem 1.05rem;
+  border-radius: var(--radius);
+  background: color-mix(in srgb, var(--surface) 62%, transparent);
+  border: 1px solid var(--line);
+}
+
+.etape-numero {
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: var(--accent-soft);
+  color: var(--accent-strong);
+  font-size: 0.86rem;
+  font-weight: 750;
+  font-variant-numeric: tabular-nums;
+}
+
+.etape-textes {
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+  font-size: 0.91rem;
+  line-height: 1.5;
+}
+
+/* ── Grille des types d'analyse ──────────────────────────────────────── */
+
+.section-sous-titre {
+  margin: 0 0 1.3rem;
+  font-size: 0.95rem;
+}
 
 .grille {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
-  gap: 1rem;
-  margin-top: 1rem;
+  grid-template-columns: repeat(auto-fill, minmax(266px, 1fr));
+  gap: 1.1rem;
 }
 
 .carte {
   display: flex;
   flex-direction: column;
-  gap: 0.45rem;
+  gap: 0.6rem;
 }
 
-.carte-entete {
+.carte-haut {
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
   gap: 0.6rem;
 }
 
-.carte-entete h3 {
-  margin: 0;
+/*
+ * L'illustration est posée dans une pastille teintée plutôt que nue : elle
+ * donne à la carte un point d'ancrage visuel, et la teinte varie selon la
+ * famille d'analyse pour qu'on distingue les cartes sans les lire.
+ */
+.carte-illustration {
+  display: grid;
+  place-items: center;
+  width: 46px;
+  height: 46px;
+  border-radius: 13px;
+  background: var(--accent-soft);
+  color: var(--accent-strong);
+  border: 1px solid color-mix(in srgb, var(--accent) 18%, transparent);
+}
+.carte-illustration[data-genre="cerveau"] {
+  background: color-mix(in srgb, var(--accent-2) 13%, transparent);
+  color: var(--accent-2);
+  border-color: color-mix(in srgb, var(--accent-2) 22%, transparent);
+}
+.carte-illustration[data-genre="zones"] {
+  background: var(--warn-soft);
+  color: var(--warn);
+  border-color: color-mix(in srgb, var(--warn) 22%, transparent);
 }
 
-.carte-compte strong {
-  font-size: 1.5rem;
-  color: var(--accent-strong);
+/* Hauteur réservée à deux lignes : les titres courts et longs alignent
+   ainsi le contenu qui suit, d'une carte à l'autre. */
+.carte-titre {
+  margin: 0.15rem 0 0;
+  min-height: 2.6em;
 }
 
 .carte-classes {
-  font-size: 0.84rem;
+  font-size: 0.86rem;
+  margin: 0;
+}
+
+.carte-mention { margin: 0; }
+
+/* `margin-top: auto` cale la mesure et les actions en bas : toutes les cartes
+   de la rangée alignent leurs boutons, quelle que soit la longueur du texte. */
+.carte-mesure {
+  margin-top: auto;
+  padding-top: 0.7rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+}
+
+.carte-compte {
+  display: flex;
+  align-items: baseline;
+  gap: 0.4rem;
+  margin: 0;
+  font-size: 0.87rem;
+}
+
+.carte-compte strong {
+  font-size: 1.7rem;
+  font-weight: 700;
+  line-height: 1;
+  color: var(--accent-strong);
+  font-variant-numeric: tabular-nums;
 }
 
 .carte-actions {
   display: flex;
+  flex-wrap: wrap;
   gap: 0.45rem;
-  margin-top: auto;
-  padding-top: 0.6rem;
-}
-
-/* Un lien ne peut pas être « disabled » : on le grise et on coupe le clic. */
-.btn-desactive {
-  opacity: 0.45;
-  pointer-events: none;
+  padding-top: 0.55rem;
 }
 
 .carte-squelette {
-  height: 184px;
+  height: 268px;
+  border-radius: var(--radius);
+}
+
+.note-confiance {
+  max-width: 68ch;
+  margin: 1.8rem 0 0;
+  color: var(--ink-muted);
+  font-size: 0.86rem;
+  line-height: 1.6;
 }

@@ -1,5 +1,7 @@
-<h2>{{ fr.comparaison.titre }}</h2>
-<p class="muted">{{ fr.comparaison.sousTitre }}</p>
+<header class="page-entete apparait">
+  <h1>{{ fr.comparaison.titre }}</h1>
+  <p class="muted page-intro">{{ fr.comparaison.sousTitre }}</p>
+</header>
 
 <section class="card bloc">
   <div class="choix">
@@ -37,21 +39,27 @@
     <table class="table">
       <thead>
         <tr>
-          <th scope="col" (click)="trierPar('modele')">
-            {{ fr.comparaison.modele }}
-            @if (colonneTri() === 'modele') {
-              <span aria-hidden="true">{{ sensTri() === 'asc' ? '▲' : '▼' }}</span>
-            }
+          <!--
+            Les en-têtes triables sont de vrais boutons, pas des cellules
+            cliquables : sans cela on ne peut trier qu'à la souris, et un
+            lecteur d'écran n'annonce ni que la colonne est triable, ni dans
+            quel sens elle l'est (`aria-sort`).
+          -->
+          <th scope="col" [attr.aria-sort]="ariaTri('modele')">
+            <button type="button" class="tri" (click)="trierPar('modele')">
+              {{ fr.comparaison.modele }}
+              <span class="tri-fleche" aria-hidden="true">{{ flecheTri('modele') }}</span>
+            </button>
           </th>
           <th scope="col">{{ fr.comparaison.etat }}</th>
           <th scope="col">{{ fr.comparaison.taille }}</th>
           <th scope="col">{{ fr.comparaison.maj }}</th>
           @for (colonne of colonnesMetriques(); track colonne) {
-            <th scope="col" (click)="trierPar(colonne)">
-              {{ colonne }}
-              @if (colonneTri() === colonne) {
-                <span aria-hidden="true">{{ sensTri() === 'asc' ? '▲' : '▼' }}</span>
-              }
+            <th scope="col" [attr.aria-sort]="ariaTri(colonne)">
+              <button type="button" class="tri" (click)="trierPar(colonne)">
+                {{ colonne }}
+                <span class="tri-fleche" aria-hidden="true">{{ flecheTri(colonne) }}</span>
+              </button>
             </th>
           }
         </tr>

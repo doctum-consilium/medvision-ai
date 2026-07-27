@@ -1,18 +1,39 @@
 <header class="entete">
   <div class="entete-bande">
-    <div class="entete-identite">
-      <span class="entete-marque" aria-hidden="true">◍</span>
-      <div>
-        <h1 class="entete-titre">{{ fr.app.titre }}</h1>
-        <p class="muted entete-sous-titre">{{ fr.app.sousTitre }}</p>
-      </div>
-    </div>
+    <a class="entete-identite" routerLink="/" aria-label="MedVision AI, retour à l’accueil">
+      <!-- Marque dessinée plutôt qu'un caractère typographique : un iris
+           stylisé, l'œil qui regarde l'image. Un glyphe emprunté à une police
+           change d'aspect d'un système à l'autre — ce n'est pas une identité. -->
+      <span class="entete-marque" aria-hidden="true">
+        <svg viewBox="0 0 40 40" width="34" height="34" fill="none">
+          <circle cx="20" cy="20" r="18.5" stroke="url(#mv-bord)" stroke-width="2.4" />
+          <circle cx="20" cy="20" r="9.5" fill="url(#mv-iris)" opacity="0.92" />
+          <circle cx="20" cy="20" r="3.6" fill="var(--surface)" />
+          <path d="M4 20h6M30 20h6M20 4v6M20 30v6" stroke="url(#mv-bord)"
+                stroke-width="2.4" stroke-linecap="round" />
+          <defs>
+            <linearGradient id="mv-bord" x1="0" y1="0" x2="40" y2="40">
+              <stop stop-color="var(--accent-clair)" />
+              <stop offset="1" stop-color="var(--accent-strong)" />
+            </linearGradient>
+            <linearGradient id="mv-iris" x1="10" y1="10" x2="30" y2="30">
+              <stop stop-color="var(--accent-clair)" />
+              <stop offset="1" stop-color="var(--accent)" />
+            </linearGradient>
+          </defs>
+        </svg>
+      </span>
+      <span class="entete-textes">
+        <span class="entete-titre">{{ fr.app.titre }}</span>
+        <span class="entete-sous-titre">{{ fr.app.sousTitre }}</span>
+      </span>
+    </a>
 
     <div class="entete-outils">
       <!-- La pastille dit si l'interface est réellement à l'écoute du serveur.
            Sans elle, un flux coupé donnerait l'illusion d'un écran à jour. -->
       <span
-        class="badge"
+        class="badge etat-flux"
         [class.badge-ok]="etatFlux() === 'connecte'"
         [class.badge-off]="etatFlux() !== 'connecte'"
         [title]="fr.app.tempsReel"
@@ -21,8 +42,25 @@
         {{ libelleFlux() }}
       </span>
 
-      <button type="button" class="btn" (click)="basculerTheme()" [attr.aria-label]="fr.app.theme">
-        {{ theme.theme() === 'dark' ? '☀' : '☾' }}
+      <button
+        type="button"
+        class="btn btn-discret bouton-theme"
+        (click)="basculerTheme()"
+        [attr.aria-label]="fr.app.theme"
+        [title]="fr.app.theme"
+      >
+        @if (theme.theme() === 'dark') {
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor"
+               stroke-width="2" stroke-linecap="round" aria-hidden="true">
+            <circle cx="12" cy="12" r="4.2" />
+            <path d="M12 2.6v2.2M12 19.2v2.2M2.6 12h2.2M19.2 12h2.2M5.3 5.3l1.6 1.6M17.1 17.1l1.6 1.6M18.7 5.3l-1.6 1.6M6.9 17.1l-1.6 1.6" />
+          </svg>
+        } @else {
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor"
+               stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M20.5 14.3A8.6 8.6 0 0 1 9.7 3.5a8.6 8.6 0 1 0 10.8 10.8Z" />
+          </svg>
+        }
       </button>
     </div>
   </div>
@@ -41,7 +79,9 @@
 </header>
 
 @if (annonceNouveaute()) {
-  <div class="annonce" role="status">✦ {{ fr.app.nouveauxModeles }}</div>
+  <div class="annonce apparait" role="status">
+    <span aria-hidden="true">✦</span> {{ fr.app.nouveauxModeles }}
+  </div>
 }
 
 @if (store.erreur(); as message) {
@@ -55,5 +95,12 @@
 <footer class="pied">
   <!-- Avertissement permanent, jamais masqué ni replié : c'est un produit
        qui montre des images médicales à un public non spécialiste. -->
-  <p class="muted">{{ fr.app.disclaimer }}</p>
+  <p class="pied-avertissement">
+    <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor"
+         stroke-width="2" stroke-linecap="round" aria-hidden="true">
+      <circle cx="12" cy="12" r="9.2" />
+      <path d="M12 7.6v5.2M12 16.2v.1" />
+    </svg>
+    <span>{{ fr.app.disclaimer }}</span>
+  </p>
 </footer>

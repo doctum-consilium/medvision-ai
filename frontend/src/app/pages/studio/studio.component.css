@@ -1,8 +1,41 @@
 /* Mise en page du studio. Un bloc = une étape, dans l'ordre où l'on décide :
    quoi analyser, sur quelle image, avec quels modèles. */
 
+.page-entete {
+  max-width: 58ch;
+  margin-bottom: 1.6rem;
+}
+
+.page-intro {
+  font-size: 1.02rem;
+  line-height: 1.65;
+  margin: 0.4rem 0 0;
+}
+
 .bloc {
   margin-top: 1.1rem;
+}
+
+/* Les trois étapes sont numérotées : l'écran se lit alors comme un parcours,
+   et non comme un formulaire dont on ignore par où commencer. */
+.bloc-titre {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  margin-bottom: 0.35rem;
+}
+
+.bloc-numero {
+  display: grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background: var(--accent-soft);
+  color: var(--accent-strong);
+  font-size: 0.82rem;
+  font-weight: 750;
+  font-variant-numeric: tabular-nums;
 }
 
 .bloc-entete {

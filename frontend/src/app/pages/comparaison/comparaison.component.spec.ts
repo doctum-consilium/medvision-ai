@@ -135,6 +135,26 @@ describe('ComparaisonComponent', () => {
     expect(composant.formaterTaille(ligne)).toBe('5.0 Mo');
   });
 
+  it('annonce l’état de tri aux lecteurs d’écran', async () => {
+    const composant = (await monter()).componentInstance;
+
+    expect(composant.ariaTri('accuracy')).toBe('none');
+    composant.trierPar('accuracy');
+    expect(composant.ariaTri('accuracy')).toBe('descending');
+    expect(composant.ariaTri('f1')).toBe('none');
+    composant.trierPar('accuracy');
+    expect(composant.ariaTri('accuracy')).toBe('ascending');
+  });
+
+  it('signale qu’une colonne est triable avant tout clic', async () => {
+    const composant = (await monter()).componentInstance;
+    // Flèche double sur les colonnes non triées : sans elle, rien n'indique
+    // qu'on peut cliquer.
+    expect(composant.flecheTri('f1')).toBe('↕');
+    composant.trierPar('f1');
+    expect(composant.flecheTri('f1')).toBe('▼');
+  });
+
   it('met la date de mise à jour en forme courte', async () => {
     const composant = (await monter()).componentInstance;
     const ligne = composant.lignes().find((l) => l.modele === 'alpha')!;
