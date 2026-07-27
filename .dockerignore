@@ -19,3 +19,10 @@ data/raw/
 
 # Artefacts ML (modèles, rapports) : gérés par DVC/S3, pas baked dans l'image
 artifacts/
+
+# Front : les dépendances (~400 Mo) sont réinstallées PAR l'image de build
+# (npm ci). Les envoyer dans le contexte Docker ferait perdre une minute à
+# chaque construction, pour un contenu aussitôt jeté.
+frontend/node_modules/
+frontend/dist/
+frontend/.angular/

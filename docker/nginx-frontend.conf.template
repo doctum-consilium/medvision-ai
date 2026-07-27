@@ -1,0 +1,89 @@
+# Configuration nginx de l'interface web MedVision.
+#
+# Deux rôles : servir l'application mono-page, et relayer /api vers l'API
+# dans le cluster. C'est ce relais qui permet au front de n'utiliser que des
+# chemins relatifs — donc de fonctionner à l'identique en développement, en
+# recette et en production, sans variable d'environnement côté navigateur ni
+# configuration CORS.
+#
+# POURQUOI un GABARIT et pas un fichier fixe : nginx résout les noms d'hôte
+# de `proxy_pass` UNE SEULE FOIS, au démarrage. Écrit en dur, il refuserait
+# de démarrer tant que l'API n'existe pas (« host not found in upstream ») —
+# et le pod du front partirait en CrashLoopBackOff à chaque fois qu'il
+# démarre avant l'API, ou pendant un redéploiement de celle-ci. En passant
+# par une variable et un `resolver`, le nom est résolu à CHAQUE requête :
+# nginx démarre toujours, et se rebranche tout seul quand l'API revient.
+#
+# Les deux variables ci-dessous sont remplacées au lancement du conteneur :
+#   ${NGINX_LOCAL_RESOLVERS}    — le DNS du cluster, lu dans /etc/resolv.conf
+#   ${MEDVISION_API_UPSTREAM}   — l'adresse de l'API (modifiable sans rebuild)
+
+resolver ${NGINX_LOCAL_RESOLVERS} valid=30s ipv6=off;
+
+server {
+    listen 80;
+    server_name _;
+
+    root /usr/share/nginx/html;
+    index index.html;
+
+    # Les images médicales envoyées par les utilisateurs peuvent être lourdes.
+    client_max_body_size 32m;
+
+    gzip on;
+    gzip_types text/css application/javascript application/json image/svg+xml;
+    gzip_min_length 1024;
+
+    # ── Flux temps réel (Server-Sent Events) ────────────────────────────
+    # `proxy_buffering off` est INDISPENSABLE : par défaut nginx accumule la
+    # réponse avant de la transmettre, si bien que les événements
+    # n'arriveraient que par paquets — ou jamais. L'interface paraîtrait
+    # figée alors que le serveur parle.
+    location /api/events {
+        set $amont "${MEDVISION_API_UPSTREAM}";
+        proxy_pass $amont$request_uri;
+        proxy_http_version 1.1;
+        proxy_set_header Connection '';
+        proxy_set_header Host $host;
+        proxy_buffering off;
+        proxy_cache off;
+        # Le flux est volontairement long : une minute de silence entre deux
+        # battements de cœur ne doit pas être prise pour une panne.
+        proxy_read_timeout 3600s;
+    }
+
+    # ── Reste de l'API ──────────────────────────────────────────────────
+    location /api/ {
+        set $amont "${MEDVISION_API_UPSTREAM}";
+        proxy_pass $amont$request_uri;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        # L'inférence sur processeur prend quelques secondes par modèle, et
+        # une analyse peut en enchaîner plusieurs.
+        proxy_read_timeout 120s;
+    }
+
+    # ── Fichiers compilés ───────────────────────────────────────────────
+    # Leurs noms contiennent une empreinte du contenu : ils ne changent
+    # jamais sans changer de nom, donc on peut les garder un an en cache.
+    # Un SEUL en-tête de cache : `expires` en émettrait un second, et deux
+    # Cache-Control contradictoires sont une source classique de confusion.
+    location ~* \.(?:js|css|woff2?|svg|png|jpg|jpeg|gif|ico)$ {
+        add_header Cache-Control "public, max-age=31536000, immutable";
+        try_files $uri =404;
+    }
+
+    # ── Application mono-page ───────────────────────────────────────────
+    # Toute adresse inconnue rend index.html : c'est le routeur Angular qui
+    # décide de l'écran. Sans cette règle, recharger la page sur /studio
+    # renverrait une erreur 404.
+    location / {
+        # index.html N'EST PAS mis en cache : c'est lui qui référence les
+        # fichiers empreintés, un cache ici figerait la version déployée.
+        add_header Cache-Control "no-store";
+        try_files $uri $uri/ /index.html;
+    }
+}
