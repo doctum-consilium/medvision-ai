@@ -1,0 +1,128 @@
+/*
+ * Habillage de la coquille. Les couleurs viennent toutes des tokens du
+ * design system (styles.css) : rien n'est écrit en dur ici, sinon le thème
+ * sombre repeindrait le contenu mais pas l'en-tête.
+ */
+
+:host {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+}
+
+.entete {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  background: color-mix(in srgb, var(--surface) 88%, transparent);
+  backdrop-filter: blur(8px);
+  border-bottom: 1px solid var(--line);
+}
+
+.entete-bande {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  flex-wrap: wrap;
+  max-width: 1180px;
+  margin: 0 auto;
+  padding: 0.85rem 1.15rem 0.5rem;
+}
+
+.entete-identite {
+  display: flex;
+  align-items: center;
+  gap: 0.7rem;
+}
+
+.entete-marque {
+  font-size: 1.7rem;
+  line-height: 1;
+  color: var(--accent);
+}
+
+.entete-titre {
+  font-size: 1.18rem;
+  margin: 0;
+}
+
+.entete-sous-titre {
+  font-size: 0.82rem;
+  margin: 0;
+}
+
+.entete-outils {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+}
+
+/* Petit rond de la pastille temps réel : plein et pulsant quand connecté. */
+.pastille {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--ink-muted);
+}
+
+.pastille-active {
+  background: var(--accent);
+  animation: pulse 2s ease-in-out infinite;
+}
+
+.entete-nav {
+  display: flex;
+  gap: 0.3rem;
+  max-width: 1180px;
+  margin: 0 auto;
+  padding: 0 1.15rem;
+}
+
+.onglet {
+  padding: 0.5rem 0.85rem;
+  border-bottom: 2px solid transparent;
+  color: var(--ink-muted);
+  font-weight: 600;
+  font-size: 0.92rem;
+}
+
+.onglet:hover {
+  color: var(--ink);
+  text-decoration: none;
+}
+
+.onglet-actif {
+  color: var(--accent-strong);
+  border-bottom-color: var(--accent);
+}
+
+.annonce {
+  max-width: 1180px;
+  margin: 0.8rem auto 0;
+  padding: 0.6rem 1rem;
+  border-radius: var(--radius-sm);
+  background: var(--accent-soft);
+  color: var(--accent-strong);
+  font-weight: 600;
+}
+
+.annonce-erreur {
+  background: var(--danger-soft);
+  color: var(--danger);
+}
+
+.contenu {
+  flex: 1;
+  width: 100%;
+  max-width: 1180px;
+  margin: 0 auto;
+  padding: 1.4rem 1.15rem 2.5rem;
+}
+
+.pied {
+  border-top: 1px solid var(--line);
+  padding: 0.9rem 1.15rem;
+  text-align: center;
+  font-size: 0.82rem;
+}

@@ -1,0 +1,38 @@
+<h2>{{ fr.accueil.titre }}</h2>
+
+@if (store.chargement() && store.vide()) {
+  <!-- Squelettes plutôt qu'un « chargement… » : la page garde sa forme, donc
+       rien ne saute quand les vraies cartes arrivent. -->
+  <div class="grille">
+    @for (i of [1, 2, 3, 4]; track i) {
+      <div class="skeleton carte-squelette"></div>
+    }
+  </div>
+} @else if (store.cartes().length === 0) {
+  <p class="muted">{{ fr.accueil.aucunModele }}</p>
+} @else {
+  <div class="grille">
+    @for (carte of store.cartes(); track carte.id) {
+      <article class="card carte">
+        <header class="carte-entete">
+          <h3>{{ carte.label }}</h3>
+          @if (carte.estSegmentation) {
+            <span class="badge badge-new">{{ fr.accueil.zonesSeules }}</span>
+          }
+        </header>
+
+        <p class="carte-compte">
+          <strong>{{ carte.modelesDisponibles }}</strong>
+          {{ fr.accueil.sur }} {{ carte.modelesTotal }} {{ fr.accueil.modelesPrets }}
+        </p>
+
+        @if (!carte.estSegmentation) {
+          <p class="muted carte-classes">
+            {{ carte.classNames.length }} {{ fr.accueil.categories }} —
+            {{ carte.classNames.join(', ') }}
+          </p>
+        }
+      </article>
+    }
+  </div>
+}

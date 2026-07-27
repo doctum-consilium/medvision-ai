@@ -1,0 +1,59 @@
+<header class="entete">
+  <div class="entete-bande">
+    <div class="entete-identite">
+      <span class="entete-marque" aria-hidden="true">◍</span>
+      <div>
+        <h1 class="entete-titre">{{ fr.app.titre }}</h1>
+        <p class="muted entete-sous-titre">{{ fr.app.sousTitre }}</p>
+      </div>
+    </div>
+
+    <div class="entete-outils">
+      <!-- La pastille dit si l'interface est réellement à l'écoute du serveur.
+           Sans elle, un flux coupé donnerait l'illusion d'un écran à jour. -->
+      <span
+        class="badge"
+        [class.badge-ok]="etatFlux() === 'connecte'"
+        [class.badge-off]="etatFlux() !== 'connecte'"
+        [title]="fr.app.tempsReel"
+      >
+        <span class="pastille" [class.pastille-active]="etatFlux() === 'connecte'"></span>
+        {{ libelleFlux() }}
+      </span>
+
+      <button type="button" class="btn" (click)="basculerTheme()" [attr.aria-label]="fr.app.theme">
+        {{ theme.theme() === 'dark' ? '☀' : '☾' }}
+      </button>
+    </div>
+  </div>
+
+  <nav class="entete-nav" aria-label="Navigation principale">
+    @for (onglet of onglets; track onglet.chemin) {
+      <a
+        class="onglet"
+        [routerLink]="['/' + onglet.chemin]"
+        routerLinkActive="onglet-actif"
+        [routerLinkActiveOptions]="{ exact: true }"
+        >{{ onglet.libelle }}</a
+      >
+    }
+  </nav>
+</header>
+
+@if (annonceNouveaute()) {
+  <div class="annonce" role="status">✦ {{ fr.app.nouveauxModeles }}</div>
+}
+
+@if (store.erreur(); as message) {
+  <div class="annonce annonce-erreur" role="alert">{{ message }}</div>
+}
+
+<main class="contenu">
+  <router-outlet />
+</main>
+
+<footer class="pied">
+  <!-- Avertissement permanent, jamais masqué ni replié : c'est un produit
+       qui montre des images médicales à un public non spécialiste. -->
+  <p class="muted">{{ fr.app.disclaimer }}</p>
+</footer>

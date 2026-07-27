@@ -135,4 +135,36 @@ else
   hook_fail "guardrails validator a échoué"
 fi
 
+# ── 5) Front Angular — MIROIR du job CI « build-and-test » (ci-front.yml) ─
+# On ne lance rien si le front n'a pas bougé par rapport à origin/main : une
+# session purement Python ne doit pas attendre une compilation Angular.
+hook_title "Front Angular (build + tests)"
+if [ ! -d "$REPO_ROOT/frontend" ]; then
+  hook_skip "pas de front dans ce repo"
+elif ! command -v npm >/dev/null 2>&1; then
+  hook_skip "npm absent (installer Node 22)"
+elif git diff --quiet origin/main -- frontend 2>/dev/null; then
+  hook_skip "front inchangé vs origin/main"
+elif [ ! -d "$REPO_ROOT/frontend/node_modules" ]; then
+  hook_fail "front : dépendances absentes (cd frontend && npm ci)"
+else
+  FRONT_FAIL=0
+  ( cd "$REPO_ROOT/frontend" && npm run build >/dev/null 2>&1 ) || FRONT_FAIL=1
+  if [ "$FRONT_FAIL" -eq 0 ]; then
+    # Karma a besoin d'un Chrome : sans lui on ne fait PAS échouer la CI
+    # locale, on le signale — le job GitHub, lui, en a toujours un.
+    FRONT_CHROME="${CHROME_BIN:-$(command -v google-chrome || command -v chromium || true)}"
+    if [ -z "$FRONT_CHROME" ]; then
+      hook_skip "front : build OK, tests sautés (aucun Chrome trouvé)"
+    elif ( cd "$REPO_ROOT/frontend" \
+        && CHROME_BIN="$FRONT_CHROME" npx ng test --watch=false --browsers=ChromeHeadless >/dev/null 2>&1 ); then
+      hook_ok "front : build et tests verts"
+    else
+      hook_fail "front : des tests unitaires échouent (cd frontend && npx ng test --watch=false --browsers=ChromeHeadless)"
+    fi
+  else
+    hook_fail "front : la compilation échoue (cd frontend && npm run build)"
+  fi
+fi
+
 hook_summary
