@@ -40,7 +40,10 @@ export class AppComponent {
    * Onglets proposés. La liste grandit au fur et à mesure que les écrans
    * sont livrés — on ne propose jamais un lien qui mène à une page absente.
    */
-  readonly onglets: Onglet[] = [{ chemin: '', libelle: FR.nav.accueil }];
+  readonly onglets: Onglet[] = [
+    { chemin: '', libelle: FR.nav.accueil },
+    { chemin: 'studio', libelle: FR.nav.studio },
+  ];
 
   /** État de la connexion temps réel, pour la pastille de l'en-tête. */
   readonly etatFlux = this.sse.etat;

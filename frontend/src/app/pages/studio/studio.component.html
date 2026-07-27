@@ -1,0 +1,241 @@
+<h2>{{ fr.studio.titre }}</h2>
+
+<!-- 1. Type d'analyse ─────────────────────────────────────────────────── -->
+<section class="card bloc">
+  <h3>{{ fr.studio.choisirProbleme }}</h3>
+  <div class="choix">
+    @for (carte of store.cartes(); track carte.id) {
+      <button
+        type="button"
+        class="btn"
+        [class.btn-primary]="carte.id === problemeId()"
+        (click)="choisirProbleme(carte.id)"
+      >
+        {{ carte.label }}
+      </button>
+    }
+  </div>
+
+  @if (estSegmentation()) {
+    <!-- Dit d'emblée ce que cet écran ne fera PAS, avant même l'analyse. -->
+    <p class="avertissement">{{ fr.studio.pasDeDiagnostic }}</p>
+  }
+</section>
+
+<!-- 2. Image ──────────────────────────────────────────────────────────── -->
+<section class="card bloc">
+  <h3>{{ fr.studio.source }}</h3>
+
+  <div class="depot" (dragover)="$event.preventDefault()" (drop)="surDepot($event)">
+    <label class="depot-zone">
+      <input type="file" accept="image/*" hidden (change)="surSelectionFichier($event)" />
+      <strong>{{ fr.studio.deposer }}</strong>
+      <span class="muted">{{ fr.studio.deposerAide }}</span>
+    </label>
+
+    @if (urlApercu(); as apercu) {
+      <img class="apercu" [src]="apercu" alt="Aperçu de la sélection" />
+    }
+  </div>
+
+  <h4 class="banque-titre">{{ fr.studio.banque }}</h4>
+
+  <div class="filtres">
+    <input
+      id="recherche-exemples"
+      class="input recherche"
+      type="search"
+      [attr.aria-label]="fr.studio.recherche"
+      [placeholder]="fr.studio.recherche"
+      [ngModel]="recherche()"
+      (ngModelChange)="recherche.set($event); page.set(1)"
+    />
+    <div class="choix">
+      <button
+        type="button"
+        class="btn"
+        [class.btn-primary]="labelsChoisis().length === 0"
+        (click)="labelsChoisis.set([]); page.set(1)"
+      >
+        {{ fr.studio.toutes }}
+      </button>
+      @for (classe of classes(); track classe) {
+        <button
+          type="button"
+          class="btn"
+          [class.btn-primary]="labelsChoisis().includes(classe)"
+          (click)="basculerLabel(classe)"
+        >
+          {{ classe }}
+        </button>
+      }
+    </div>
+  </div>
+
+  @if (chargementBanque()) {
+    <div class="vignettes">
+      @for (i of [1, 2, 3, 4, 5, 6]; track i) {
+        <div class="skeleton vignette"></div>
+      }
+    </div>
+  } @else if (banque() !== null) {
+    @let exemples = banque()!.items;
+    @if (exemples.length === 0) {
+      <p class="muted">{{ fr.studio.aucuneImage }}</p>
+    } @else {
+      <div class="vignettes">
+        @for (exemple of exemples; track exemple.sample_id) {
+          <button
+            type="button"
+            class="vignette-bouton"
+            [class.vignette-choisie]="exemple.sample_id === sampleChoisi()?.sample_id"
+            (click)="choisirExemple(exemple)"
+            [title]="exemple.display"
+          >
+            <img class="vignette" [src]="urlVignette(exemple)" [alt]="exemple.display" loading="lazy" />
+            <span class="vignette-label">{{ exemple.label }}</span>
+          </button>
+        }
+      </div>
+
+      <div class="pagination">
+        <button type="button" class="btn" [disabled]="page() <= 1" (click)="page.set(page() - 1)">
+          ‹
+        </button>
+        <span class="muted">{{ fr.studio.page }} {{ page() }} {{ fr.studio.sur }} {{ nombrePages() }}</span>
+        <button
+          type="button"
+          class="btn"
+          [disabled]="page() >= nombrePages()"
+          (click)="page.set(page() + 1)"
+        >
+          ›
+        </button>
+      </div>
+    }
+  } @else {
+    <p class="muted">{{ fr.studio.aucuneImage }}</p>
+  }
+</section>
+
+<!-- 3. Modèles ────────────────────────────────────────────────────────── -->
+<section class="card bloc">
+  <div class="bloc-entete">
+    <h3>{{ fr.studio.modeles }}</h3>
+    <div class="choix">
+      <button type="button" class="btn" (click)="toutSelectionner()">
+        {{ fr.studio.toutSelectionner }}
+      </button>
+      <button type="button" class="btn" (click)="toutDeselectionner()">
+        {{ fr.studio.toutDeselectionner }}
+      </button>
+    </div>
+  </div>
+
+  <div class="modeles">
+    @for (modele of modeles(); track modele.nom) {
+      <label class="modele" [class.modele-absent]="!modele.disponible">
+        <input
+          type="checkbox"
+          [checked]="modelesChoisis().has(modele.nom)"
+          [disabled]="!modele.disponible"
+          (change)="basculerModele(modele.nom)"
+        />
+        <span>{{ modele.nom }}</span>
+        @if (!modele.disponible) {
+          <span class="badge badge-off">{{ fr.comparaison.absent }}</span>
+        }
+      </label>
+    }
+  </div>
+
+  <button type="button" class="btn btn-primary lancer" [disabled]="!peutAnalyser()" (click)="analyser()">
+    {{ enCours() ? fr.studio.enCours : fr.studio.analyser }}
+  </button>
+</section>
+
+<!-- 4. Résultats ──────────────────────────────────────────────────────── -->
+@if (erreur(); as message) {
+  <p class="badge badge-error">{{ message }}</p>
+}
+
+@if (resultats().length > 0) {
+  <section class="bloc">
+    <h3>{{ fr.studio.resultats }}</h3>
+
+    @if (estSegmentation()) {
+      <!-- Réglages communs à toutes les cartes : bouger le curseur ne
+           relance AUCUN calcul serveur, tout se refait dans le navigateur. -->
+      <div class="card reglages">
+        <label class="reglage">
+          {{ fr.studio.seuil }}
+          <input type="range" min="0" max="1" step="0.01" [ngModel]="seuil()" (ngModelChange)="seuil.set(+$event)" />
+          <span class="mono">{{ (seuil() * 100).toFixed(0) }} %</span>
+        </label>
+        <label class="reglage">
+          {{ fr.studio.opacite }}
+          <input type="range" min="0" max="1" step="0.01" [ngModel]="opacite()" (ngModelChange)="opacite.set(+$event)" />
+        </label>
+        <div class="choix">
+          <button type="button" class="btn" [class.btn-primary]="vue() === 'superposition'" (click)="vue.set('superposition')">
+            {{ fr.studio.vueSuperposition }}
+          </button>
+          <button type="button" class="btn" [class.btn-primary]="vue() === 'masque'" (click)="vue.set('masque')">
+            {{ fr.studio.vueMasque }}
+          </button>
+          <button type="button" class="btn" [class.btn-primary]="vue() === 'probabilite'" (click)="vue.set('probabilite')">
+            {{ fr.studio.vueProbabilite }}
+          </button>
+        </div>
+      </div>
+    }
+
+    <div class="resultats">
+      @for (resultat of resultats(); track resultat.model_name) {
+        <article class="card resultat">
+          <h4>{{ resultat.model_name }}</h4>
+
+          @if (resultat.error) {
+            <!-- Un modèle cassé n'empêche pas de lire les autres. -->
+            <p class="badge badge-error">{{ resultat.error }}</p>
+          } @else if (estSegmentation()) {
+            @if (resultat.segmentation; as seg) {
+              <app-superposition-segmentation
+                [imagePng]="seg.preprocessed_png"
+                [masqueProbaPng]="seg.mask_prob_png"
+                [seuil]="seuil()"
+                [opacite]="opacite()"
+                [vue]="vue()"
+              />
+              <p class="mono">
+                {{ fr.studio.surface }} : <strong>{{ surfacePourcent(resultat) }}</strong>
+              </p>
+            }
+          } @else {
+            <p class="prediction">
+              {{ fr.studio.prediction }} : <strong>{{ resultat.predicted_class }}</strong>
+            </p>
+            <p class="muted">
+              {{ fr.studio.confiance }} :
+              <span class="mono">{{ ((resultat.confidence ?? 0) * 100).toFixed(1) }} %</span>
+            </p>
+            <div class="prob-bar" [attr.aria-hidden]="true">
+              <span [style.width.%]="(resultat.confidence ?? 0) * 100"></span>
+            </div>
+
+            @if (resultat.probabilities) {
+              <div class="graphe">
+                <app-graphe-barres
+                  [etiquettes]="etiquettesProbabilites(resultat)"
+                  [series]="seriesProbabilites(resultat)"
+                  [maximum]="1"
+                  [descriptionAccessible]="fr.studio.probabilites"
+                />
+              </div>
+            }
+          }
+        </article>
+      }
+    </div>
+  </section>
+}
