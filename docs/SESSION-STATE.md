@@ -8,7 +8,7 @@ Point de reprise canonique. Mis à jour à chaque session significative.
 ## 🤝 HANDOFF 2026-07-27 — L'interface web Angular EN PRODUCTION sur ui.medvision
 
 > **En ligne : <https://ui.medvision.doctumconsilium.com>** — image
-> `medvision-web:2026-07-27b`. L'interface Streamlit historique reste en service sur
+> `medvision-web:2026-07-28`. L'interface Streamlit historique reste en service sur
 > `app.medvision`, l'API sur `api.medvision` ; `medvision-ai` n'a pas bougé
 > (`2026-07-18f`). Plan suivi : `docs/plans/2026-07-27-medvision-front-angular-b1.md`.
 
@@ -17,6 +17,7 @@ Point de reprise canonique. Mis à jour à chaque session significative.
 | Contrôle | Résultat |
 |---|---|
 | Certificat TLS | valide, trois noms, expire le 2026-10-25 |
+| Vitrine `doctumconsilium.com` | bascule faite : les deux liens MedVision pointent sur `ui.medvision` |
 | Les trois écrans (`/`, `/studio`, `/comparaison`) | 200 |
 | Registre des modèles à travers l'interface | 15 disponibles (5 + 8 + 1 + 1) |
 | Banque d'exemples | 176 radiographies, 200 IRM de segmentation |
