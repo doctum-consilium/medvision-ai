@@ -55,10 +55,9 @@ kubectl -n medvision set image deploy/medvision-web \
 kubectl -n medvision rollout status deploy/medvision-web --timeout=180s
 ```
 
-**Note de suivi des versions.** Ce dépôt n'a volontairement pas de
-`docs/IMAGE-VERSIONS.md` (décision du 2026-07-18) : les tags sont consignés ici et en
-tête de `docs/SESSION-STATE.md`. Le tableau `IMG` de `doctum-trading-platform` ne suit
-que les images de cette plateforme-là et ne concerne pas MedVision.
+**Note de suivi des versions.** La décision du 2026-07-18 de se passer d'un fichier
+dédié est **annulée** : `docs/IMAGE-VERSIONS.md` existe désormais ici aussi, sur le même
+modèle que les autres dépôts. Une seule procédure partout, quel que soit le projet.
 
 **Hors scope.** La vitrine `doctumconsilium.com` a été mise à jour dans son propre dépôt
 (`doctumconsilium-html5-css3-portfolio`), où le déploiement est consigné.

@@ -125,6 +125,32 @@ Le lien PR permet à tout agent de reprendre en contexte lors de la session suiv
   3. Restart pods stuck in `ImagePullBackOff`.
 - Document rotation commands in `INFRASTRUCTURE.md` under Operations.
 
+## Suivi des versions d'images (Mandatory — même procédure dans TOUS les dépôts)
+
+Cette procédure est **identique partout** : `doctum-trading-platform`, `medvision-ai`,
+le portfolio, et tout dépôt qui publie une image. Elle a changé le **2026-07-28** — avant,
+certains dépôts consignaient les tags ailleurs, ou pas du tout. Cette exception est levée :
+un dépôt qui publie une image tient un `docs/IMAGE-VERSIONS.md`.
+
+**Après CHAQUE déploiement, sans exception :**
+
+1. **`docs/IMAGE-VERSIONS.md`** — tableau des images déployées, date en tête, ligne
+   ajoutée à l'historique.
+2. **Les manifests k3s** — le **gabarit ET le rendu** (`deploy/platform/*.template.yaml`
+   et `rendered-k3s-manifests/*.yaml` dans `k3s-fromOVHVps`). Ne mettre à jour que l'un
+   des deux fait diverger silencieusement la reconstruction du cluster de la production.
+3. **`ROADMAP.md`** — entrée **datée en tête** du journal, avec les **commandes exactes
+   rejouables**. Elles sont dans `~/.claude/ops-journal/*.tsv` : les y relire plutôt que
+   de les reconstituer de mémoire.
+4. **`docs/SESSION-STATE.md`** — reporter le tag en tête.
+5. **Le tag par défaut des scripts de redéploiement** — le laisser périmé fait redéployer
+   une version antérieure aux correctifs le jour où on lance le script sans argument,
+   c'est-à-dire en pleine panne.
+
+**Pourquoi cette rigueur** : ces fichiers sont la seule mémoire de ce qui tourne
+réellement. Une entrée manquante, et la prochaine session — humaine ou non — redéploie à
+l'aveugle ou reconstruit le cluster sur une description périmée. C'est arrivé.
+
 ## Terminal Sessions (Mandatory for Critical Operations)
 - Always use a named tmux session for long-running, deployment, or destructive operations:
   ```bash
