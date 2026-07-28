@@ -8,7 +8,7 @@ Point de reprise canonique. Mis à jour à chaque session significative.
 ## 🤝 HANDOFF 2026-07-27 — L'interface web Angular EN PRODUCTION sur ui.medvision
 
 > **En ligne : <https://ui.medvision.doctumconsilium.com>** — image
-> `medvision-web:2026-07-27b`. L'interface Streamlit historique reste en service sur
+> `medvision-web:2026-07-28`. L'interface Streamlit historique reste en service sur
 > `app.medvision`, l'API sur `api.medvision` ; `medvision-ai` n'a pas bougé
 > (`2026-07-18f`). Plan suivi : `docs/plans/2026-07-27-medvision-front-angular-b1.md`.
 
@@ -17,6 +17,7 @@ Point de reprise canonique. Mis à jour à chaque session significative.
 | Contrôle | Résultat |
 |---|---|
 | Certificat TLS | valide, trois noms, expire le 2026-10-25 |
+| Vitrine `doctumconsilium.com` | bascule faite : les deux liens MedVision pointent sur `ui.medvision` |
 | Les trois écrans (`/`, `/studio`, `/comparaison`) | 200 |
 | Registre des modèles à travers l'interface | 15 disponibles (5 + 8 + 1 + 1) |
 | Banque d'exemples | 176 radiographies, 200 IRM de segmentation |
@@ -61,13 +62,18 @@ utilisables à la souris seulement, sont devenus de vrais boutons annonçant
 
 ### Deux découvertes d'infrastructure à traiter
 
-1. **🔴 La synchronisation DNS travaille sur un clone périmé.**
-   `scripts/ovh_dns_sync_k3s_zone.sh` lit `RENDERED_MANIFESTS_DIR`, que la configuration
-   pointe sur **`/home/yann/Documents/Github/k3s-fromOVHVps/`** (et non `GithubPerso/`) —
-   un ancien clone dont `30-medvision.yaml` **date du 26 avril**. Conséquence : tout hôte
-   ajouté depuis n'a jamais été créé par ce script, et il pourrait supprimer des
-   enregistrements sur la foi d'une description obsolète. `ui.medvision` a dû être créé en
-   forçant la liste des hôtes. **À corriger dans la configuration.**
+1. **La liste DNS de la plateforme est tenue à la main.** La configuration
+   (`scripts/bootstrap_k3s_multi_app_platform.env`) définit `DNS_RECORDS`, une liste
+   explicite d'adresses qui **court-circuite** la lecture des manifests : le script ne
+   voit donc jamais un nouvel hôte ajouté au dépôt. C'est pour cela que `ui.medvision`
+   n'a pas été créé automatiquement. Rassurant en revanche : le script ne touche QUE les
+   sous-domaines de cette liste, il ne peut donc rien supprimer ailleurs.
+   `ui.medvision` y a été ajouté (35 adresses) ; une exécution le confirme en `keep`.
+   **Amélioration possible, non faite** : vider `DNS_RECORDS` pour laisser la découverte
+   automatique depuis les manifests reprendre la main — le répertoire par défaut est
+   correct. À ne tenter qu'après une simulation, car la configuration force aussi
+   `DNS_SYNC_DRY_RUN=false`.
+
 2. **Le secret de tirage ECR était périmé de neuf jours.** Un jeton ECR vit 12 h : les
    pods déjà démarrés ne s'en aperçoivent pas, mais tout nouveau tag échoue en
    `403 Forbidden`. Renouvelé par `kubectl patch` (jamais par delete/create : cela ouvre

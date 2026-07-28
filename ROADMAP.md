@@ -1,10 +1,67 @@
 # ROADMAP
 
 ## Last Update
-2026-07-27 (interface web Angular EN PRODUCTION sur ui.medvision.doctumconsilium.com)
+2026-07-28 (interface reprise pour la vitrine : libellés et état de connexion corrigés)
 
 ## Active Phase
 Phase 3 — Nouvelle interface (Angular) et portail de documentation
+
+## Execution Log — 2026-07-28
+
+### Phase 3c — Ce que la photographie de l'interface a révélé
+
+**Point de départ.** L'interface était en ligne depuis la veille. Il fallait la
+photographier pour la vitrine `doctumconsilium.com` — donc la regarder comme un visiteur
+la voit, et non comme on relit du code. Deux défauts sont apparus immédiatement.
+
+**Ce qui a été corrigé.**
+
+1. **La pastille de connexion mentait au premier chargement.** Elle affichait
+   « reconnexion… » avant même qu'une connexion ait été tentée : sur une page qui vient
+   de s'ouvrir, cela laisse croire à un incident. Elle distingue désormais trois états et
+   annonce « connexion… » tant qu'il ne s'est rien passé.
+2. **Deux catégories restaient en anglais** au milieu d'une interface française :
+   `pituitary tumor` — que le jeu de données de segmentation écrit autrement que celui de
+   classification — et `ABNORMAL`. Les étiquettes ont été **relevées sur l'API de
+   production** plutôt que devinées, et un test les fige, y compris le cas d'une étiquette
+   inconnue qui doit ressortir telle quelle plutôt que de disparaître.
+
+**Vérifications.** Trente tests unitaires verts ; captures prises sur le site public avec
+Playwright — le mode capture de Chrome ne produisait rien, car il attend l'inactivité du
+réseau alors que l'application garde ouvert un flux temps réel qui, par nature, ne se
+termine jamais.
+
+**Images.** `medvision-web:2026-07-28` en production. `medvision-ai` reste en
+`2026-07-18f`, inchangée.
+
+**Commandes de déploiement effectivement utilisées.**
+
+```bash
+# Publication de l'image du front (le script rafraîchit lui-même le jeton ECR)
+cd medvision-ai && ./scripts/build-and-push-web.sh 2026-07-28
+
+# Le jeton du secret de tirage vit 12 h : sans ce renouvellement, tout NOUVEAU tag
+# échoue en 403 alors que les pods déjà démarrés continuent de tourner. On PATCHE,
+# on ne supprime pas — un delete/create ouvre une fenêtre où le secret n'existe plus.
+T=$(aws ecr get-login-password --region eu-west-3)
+CFG=$(printf '{"auths":{"113301685315.dkr.ecr.eu-west-3.amazonaws.com":{"username":"AWS","password":"%s","auth":"%s"}}}' \
+  "$T" "$(printf 'AWS:%s' "$T" | base64 -w0)" | base64 -w0)
+kubectl -n medvision patch secret ecr-pull-secret --type merge \
+  -p "{\"data\":{\".dockerconfigjson\":\"$CFG\"}}"
+unset T CFG
+
+kubectl -n medvision set image deploy/medvision-web \
+  web=113301685315.dkr.ecr.eu-west-3.amazonaws.com/platform/medvision-web:2026-07-28
+kubectl -n medvision rollout status deploy/medvision-web --timeout=180s
+```
+
+**Note de suivi des versions.** Ce dépôt n'a volontairement pas de
+`docs/IMAGE-VERSIONS.md` (décision du 2026-07-18) : les tags sont consignés ici et en
+tête de `docs/SESSION-STATE.md`. Le tableau `IMG` de `doctum-trading-platform` ne suit
+que les images de cette plateforme-là et ne concerne pas MedVision.
+
+**Hors scope.** La vitrine `doctumconsilium.com` a été mise à jour dans son propre dépôt
+(`doctumconsilium-html5-css3-portfolio`), où le déploiement est consigné.
 
 ## Execution Log — 2026-07-27
 
@@ -92,10 +149,11 @@ service. Et le cache DVC de l'API, présent en production depuis le 18 juillet, 
 décrit dans aucun manifeste : un redéploiement l'aurait supprimé en silence. Les deux
 sont corrigés dans le dépôt.
 
-**Une découverte d'infrastructure, à traiter.** La synchronisation DNS de la plateforme
-lit un **clone périmé** des manifests (`Github/` au lieu de `GithubPerso/`), dont le
-fichier MedVision date du 26 avril. Tout hôte ajouté depuis lui est invisible. Ce n'est
-pas propre à MedVision : cela concerne toute la zone.
+**Une découverte d'exploitation.** Le nouvel hôte n'a pas été créé automatiquement par
+la synchronisation DNS : la configuration de la plateforme tient une liste d'adresses
+écrite à la main, qui court-circuite la lecture des manifests. L'adresse y a été ajoutée.
+Le script ne touchant que les sous-domaines de cette liste, il n'y avait aucun risque de
+suppression ailleurs.
 
 **Images.** `medvision-web:2026-07-27b` en production (refonte visuelle incluse). `medvision-ai` reste en
 `2026-07-18f`, inchangée.
