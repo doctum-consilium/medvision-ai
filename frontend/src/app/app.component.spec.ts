@@ -53,8 +53,17 @@ describe('AppComponent', () => {
     expect(texte).toContain(FR.app.disclaimer);
   });
 
-  it('annonce « reconnexion » tant que le flux n’est pas établi', () => {
+  it('annonce « connexion » au premier chargement, pas « reconnexion »', () => {
     const fixture = TestBed.createComponent(AppComponent);
+    fixture.detectChanges();
+    // Une page qui vient de s'ouvrir n'a rien perdu : parler de reconnexion
+    // ferait croire à un incident dès le premier coup d'œil.
+    expect(fixture.componentInstance.libelleFlux()).toBe(FR.app.connexion);
+  });
+
+  it('annonce « reconnexion » après une coupure du flux', () => {
+    const fixture = TestBed.createComponent(AppComponent);
+    sse.etatInterne.set('reconnexion');
     fixture.detectChanges();
     expect(fixture.componentInstance.libelleFlux()).toBe(FR.app.reconnexion);
   });

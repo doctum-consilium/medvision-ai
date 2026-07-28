@@ -35,12 +35,16 @@ export const NOMS_ANALYSES: Record<string, string> = {
  */
 const NOMS_CLASSES: Record<string, string> = {
   normal: 'Normal',
+  abnormal: 'Anormal',
   pneumonia: 'Pneumonie',
   glioma: 'Gliome',
   meningioma: 'Méningiome',
   notumor: 'Pas de tumeur',
   no_tumor: 'Pas de tumeur',
+  // Les deux graphies coexistent selon le jeu de données : « pituitary »
+  // pour la classification, « pituitary tumor » pour la segmentation.
   pituitary: 'Adénome hypophysaire',
+  'pituitary tumor': 'Adénome hypophysaire',
   tumor: 'Tumeur',
   background: 'Fond',
 };
@@ -65,6 +69,10 @@ export const FR = {
       'Démonstrateur pédagogique — ne remplace en aucun cas un avis médical professionnel.',
     tempsReel: 'Temps réel',
     connecte: 'connecté',
+    // « connexion… » à la première tentative, « reconnexion… » seulement après
+    // une coupure : annoncer d'emblée une reconnexion laisse croire à un
+    // incident alors que la page vient simplement de s'ouvrir.
+    connexion: 'connexion…',
     reconnexion: 'reconnexion…',
     nouveauxModeles: 'De nouveaux modèles viennent d’arriver',
     theme: 'Changer de thème',

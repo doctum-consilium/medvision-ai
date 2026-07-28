@@ -49,10 +49,23 @@ export class AppComponent {
   /** État de la connexion temps réel, pour la pastille de l'en-tête. */
   readonly etatFlux = this.sse.etat;
 
-  /** Texte de la pastille : « connecté » ou « reconnexion… ». */
-  readonly libelleFlux = computed(() =>
-    this.etatFlux() === 'connecte' ? FR.app.connecte : FR.app.reconnexion,
-  );
+  /**
+   * Texte de la pastille.
+   *
+   * Trois états distincts, et non deux : à l'ouverture de la page on annonce
+   * « connexion… », pas « reconnexion… » — sans quoi le premier affichage
+   * laisse croire à un incident alors qu'il ne s'est encore rien passé.
+   */
+  readonly libelleFlux = computed(() => {
+    switch (this.etatFlux()) {
+      case 'connecte':
+        return FR.app.connecte;
+      case 'connexion':
+        return FR.app.connexion;
+      default:
+        return FR.app.reconnexion;
+    }
+  });
 
   /** Vrai pendant quelques secondes après l'arrivée de nouveaux modèles. */
   readonly annonceNouveaute = signal(false);
