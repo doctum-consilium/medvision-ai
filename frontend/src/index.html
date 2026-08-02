@@ -6,6 +6,38 @@
   <base href="/">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="description" content="Démonstrateur pédagogique d'analyse d'images médicales par intelligence artificielle. Ne remplace pas un avis médical professionnel.">
+  <link rel="canonical" href="https://ui.medvision.doctumconsilium.com/">
+
+  <!-- Aperçu lors d'un partage sur LinkedIn, WhatsApp, Slack…
+       Ces balises vivent dans le HTML servi, pas dans l'application : les robots des
+       réseaux sociaux n'exécutent pas le JavaScript et ne liraient donc jamais ce
+       qu'Angular produit ensuite. Sans elles, un lien s'affiche en texte nu.
+
+       L'avertissement « ne remplace pas un avis médical » est repris dans la
+       description partagée : c'est précisément là qu'il doit apparaître, puisque
+       beaucoup de gens verront l'aperçu sans jamais ouvrir la page. -->
+  <meta property="og:type" content="website">
+  <meta property="og:site_name" content="MedVision AI">
+  <meta property="og:locale" content="fr_FR">
+  <meta property="og:url" content="https://ui.medvision.doctumconsilium.com/">
+  <meta property="og:title" content="MedVision AI — Analyse d'images médicales">
+  <meta property="og:description" content="Démonstrateur pédagogique d'analyse d'images médicales par intelligence artificielle. Ne remplace pas un avis médical professionnel.">
+  <meta name="twitter:card" content="summary">
+
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "SoftwareApplication",
+    "name": "MedVision AI",
+    "url": "https://ui.medvision.doctumconsilium.com/",
+    "applicationCategory": "HealthApplication",
+    "operatingSystem": "Web",
+    "inLanguage": "fr-FR",
+    "description": "Démonstrateur pédagogique d'analyse d'images médicales par intelligence artificielle. Ne remplace pas un avis médical professionnel.",
+    "disambiguatingDescription": "Outil de démonstration à visée pédagogique. Ne constitue pas un dispositif médical et ne remplace pas un avis médical professionnel.",
+    "publisher": { "@type": "Organization", "name": "Doctum Consilium", "url": "https://doctumconsilium.com/" }
+  }
+  </script>
   <!--
     `data-theme` est posé ici dès le HTML, avant que l'application ne
     démarre : sans cette valeur de départ, la page s'afficherait une
