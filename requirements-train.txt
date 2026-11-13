@@ -17,22 +17,22 @@
 # TensorFlow + Keras (versions qui ont produit les modèles actuels)
 # [and-cuda] = libs CUDA/cuDNN 8 groupées → GPU sans installation système.
 # Sans cet extra, TF retombe sur CPU ("Skipping registering GPU devices").
-tensorflow[and-cuda]==2.16.1; python_version < "3.13"
+tensorflow[and-cuda]==2.21.0; python_version < "3.13"
 keras==3.13.2
 
 # Conversion ONNX (keras → onnx).
 # onnx < 1.18 : les versions ≥ 1.18 exigent ml_dtypes ≥ 0.4 (float4_e2m1fn),
 # incompatible avec le ml_dtypes 0.3.x épinglé par TensorFlow 2.16.
-tf2onnx>=1.16
-onnx>=1.16,<1.18
+tf2onnx>=1.17.0
+onnx>=1.23.2,<1.24
 
 # Medical imaging
-nibabel>=5.0
+nibabel>=5.4.2
 
 # Notebooks
-jupyterlab==4.3.5
-notebook==7.3.2
-ipykernel==6.29.5
+jupyterlab==4.6.6
+notebook==7.6.5
+ipykernel==7.3.0
 
 # Téléchargement datasets
 kaggle>=1.7.4.5

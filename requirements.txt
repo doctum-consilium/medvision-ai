@@ -1,26 +1,26 @@
 # Inférence — dépendances de l'image Docker de production
 # (pas de TensorFlow, pas de PyTorch : l'inférence passe par onnxruntime)
-onnxruntime==1.20.1
-numpy==1.26.4
-pandas==2.2.3
-scikit-learn==1.5.2
-pillow==11.1.0
-opencv-python-headless==4.10.0.84
-mlflow==2.20.3
-fastapi==0.115.8
-uvicorn[standard]==0.34.0
-streamlit==1.43.2
-pyyaml==6.0.2
-matplotlib==3.10.1
-python-multipart==0.0.20
-pytest==8.3.5
+onnxruntime==1.24.3
+numpy==2.2.6
+pandas==2.3.3
+scikit-learn==1.7.2
+pillow==12.3.0
+opencv-python-headless==5.0.0.93
+mlflow==3.18.0
+fastapi==0.162.2
+uvicorn[standard]==0.54.0
+streamlit==1.65.0
+pyyaml==6.0.3
+matplotlib==3.10.9
+python-multipart==0.0.32
+pytest==9.2.0
 httpx==0.28.1
-plotly==6.0.0
+plotly==7.1.0
 # DVC + remote S3 UNIQUEMENT — ne PAS réintroduire l'extra gdrive :
 # il tire PyDrive2 → pyOpenSSL 22.0.0 (épinglé) qui casse avec les
 # cryptography récents (« module 'lib' has no attribute 'GEN_EMAIL' »)
 # et a mis la prod à 0 modèle le 2026-07-18. Le remote DVC est S3.
-dvc[s3]==3.59.2
-# DVC/scmrepo attend pathspec < 1.0
+dvc[s3]==3.67.1
+# DVC/scmrepo attend pathspec < 2.0
 pathspec<1.0
-awscli==1.29.57
+awscli==1.46.3
