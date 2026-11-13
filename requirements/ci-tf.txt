@@ -1,6 +1,6 @@
 # Lightweight API + TensorFlow compatibility checks.
 -r base.txt
-pytest==8.3.5
+pytest==9.2.0
 # test_api.py imports src.api.main -> src.registry.model_registry -> tensorflow
 # so TensorFlow must be present even for the /health endpoint test.
 tensorflow==2.16.1

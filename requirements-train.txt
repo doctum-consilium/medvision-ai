@@ -30,7 +30,6 @@ uvicorn[standard]==0.34.0
 pyyaml==6.0.2
 matplotlib==3.10.1
 python-multipart==0.0.31
-pytest==8.3.5
 httpx==0.28.1
 plotly==6.0.0
 # pyarrow (tiré par streamlit et mlflow) : 26.x exige NumPy 2, or numpy reste en 1.26.4
@@ -43,7 +42,6 @@ pyarrow==25.0.1
 dvc[s3]==3.59.2
 # DVC/scmrepo attend pathspec < 1.0
 pathspec<1.0
-awscli==1.29.57
 
 # TensorFlow + Keras (versions qui ont produit les modèles actuels)
 # [and-cuda] = libs CUDA/cuDNN 8 groupées → GPU sans installation système.
@@ -67,3 +65,7 @@ ipykernel==6.29.5
 
 # Téléchargement datasets
 kaggle>=1.7.4.5
+
+# AWS CLI (aws configure / aws sso login pour dvc push) — retiré de l'image de production,
+# qui n'en a pas besoin (dvc[s3] parle à S3 par boto).
+awscli==1.46.3
