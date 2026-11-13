@@ -16,8 +16,10 @@
 | MLflow | `medvision-mlflow` | `medvision-ai:2026-07-18f` ✅ | suivi des expériences |
 | **Interface web (Angular + nginx)** | `medvision-web` | `medvision-web:2026-07-28` ✅ | `ui.medvision…` |
 
-**Deux images, deux cycles de vie.** `medvision-ai` pèse plusieurs gigaoctets (PyTorch,
-TensorFlow, ONNX Runtime) et bouge rarement. `medvision-web` ne contient que des fichiers
+**Deux images, deux cycles de vie.** `medvision-ai` est l'image lourde (ONNX Runtime,
+MLflow, Streamlit, DVC) et bouge rarement. Elle ne contient **ni PyTorch ni TensorFlow** :
+l'inférence passe par ONNX Runtime, l'entraînement se fait hors image
+(`requirements-train.txt`, `requirements-torch.txt`). `medvision-web` ne contient que des fichiers
 statiques et nginx (~49 Mo) : on la republie à chaque retouche de l'interface. Les forcer
 au même tag obligerait à reconstruire l'une pour publier l'autre.
 

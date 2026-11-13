@@ -17,11 +17,14 @@ services:
     restart: unless-stopped
 
   mlflow:
-    image: python:3.10-slim
+    # Même image que l'API et l'UI (comme en production) : mêmes versions de Python et de MLflow.
+    build:
+      context: .
+      dockerfile: docker/Dockerfile
     working_dir: /app
     volumes:
       - ./:/app
-    command: bash -lc "pip install -r requirements.txt && mlflow ui --backend-store-uri ./mlruns --host 0.0.0.0 --port 5000"
+    command: mlflow ui --backend-store-uri ./mlruns --host 0.0.0.0 --port 5000
     ports:
       - "${MLFLOW_BIND_IP:-0.0.0.0}:${MLFLOW_HOST_PORT:-5000}:5000"
 

@@ -120,6 +120,10 @@ def convert_pytorch(src: Path, dst: Path) -> None:
         input_names=["input"],
         output_names=["output"],
         dynamic_axes={"input": {0: "batch"}, "output": {0: "batch"}},
+        # Exportateur TorchScript, celui qui a produit les .onnx actuels. Depuis torch 2.9,
+        # l'exportateur par défaut est dynamo : il exige le paquet onnxscript et traite
+        # dynamic_axes autrement.
+        dynamo=False,
     )
     size_mb = dst.stat().st_size / 1e6
     logger.info("  → %s (%.1f MB) ✓", dst.name, size_mb)

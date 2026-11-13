@@ -2,6 +2,19 @@
 
 These rules are mandatory for all coding tasks in medvision-ai.
 
+## 🤝 Handoff 2026-11-13 — Montée de sécurité des dépendances (PR #44, OUVERTE)
+
+> **PR** : https://github.com/doctum-consilium/medvision-ai/pull/44 — non déployée.
+>
+> - Image en **Python 3.11** (Pillow 13.0.0 l'exige) ; streamlit 1.67.0, fastapi 0.162.5,
+>   starlette 1.10.0, python-multipart 0.0.31, mlflow 3.18.0 ; pytest et awscli hors image.
+> - `requirements-train.txt` ne fait plus `-r requirements.txt` (conflit protobuf
+>   streamlit ↔ TensorFlow 2.16) : **reporter toute montée de version dans les deux fichiers.**
+> - **Avant de déployer : `docs/MLFLOW-3-MIGRATION.md`.** Sans `--allowed-hosts`, MLflow 3
+>   répond 403 à l'agent RL ; sans `MLFLOW_SERVER_ENABLE_JOB_EXECUTION=false` et `--workers 2`,
+>   il dépasse 768 Mi. Sauvegarder `mlflow.db` avant : 3.18 migre la base au démarrage et
+>   2.20.3 ne la relit plus.
+
 ## 🤝 Handoff 2026-08-19 — Documentation du code (PR #37, FUSIONNÉE)
 
 > **PR** : https://github.com/doctum-consilium/medvision-ai/pull/37 — 68 fichiers, +2885/−43,

@@ -5,20 +5,49 @@
 # et torch (NCCL cu13 2.29) partagent le soname libnccl.so.2 et se cassent mutuellement.
 # Les modèles PyTorch/vision ont leur propre env → requirements-torch.txt.
 #
-# Usage (Python 3.10–3.12, venv ou conda) :
+# Usage (Python 3.11–3.12, venv ou conda) :
 #   python -m venv .venv && source .venv/bin/activate
 #   pip install -r requirements-train.txt
 #   source scripts/gpu_env.sh            # rend les libs CUDA pip visibles à TF 2.16
 #   python -c "import tensorflow as tf; print(tf.config.list_physical_devices('GPU'))"
 
-# Hérite de toutes les deps d'inférence
--r requirements.txt
+# Deps d'inférence : MÊMES versions que requirements.txt, SAUF streamlit.
+# Pas de `-r requirements.txt` : streamlit ≥ 1.61 exige protobuf ≥ 5.26, TensorFlow 2.16 exige
+# protobuf < 5, et streamlit ≤ 1.60 refuse Pillow 13. L'UI Streamlit se lance donc depuis un
+# environnement d'inférence (`pip install -r requirements.txt`), pas depuis celui-ci.
+# Toute montée de version dans requirements.txt se reporte ici.
+onnxruntime==1.20.1
+numpy==1.26.4
+pandas==2.2.3
+scikit-learn==1.5.2
+pillow==13.0.0
+opencv-python-headless==4.10.0.84
+mlflow==3.18.0
+fastapi==0.162.5
+# starlette épinglé : fastapi 0.115 tirait starlette 0.45.3 (14 vulnérabilités OSV)
+starlette==1.10.0
+uvicorn[standard]==0.34.0
+pyyaml==6.0.2
+matplotlib==3.10.1
+python-multipart==0.0.31
+httpx==0.28.1
+plotly==6.0.0
+# pyarrow (tiré par streamlit et mlflow) : 26.x exige NumPy 2, or numpy reste en 1.26.4
+# (TensorFlow 2.16 de requirements-train.txt l'impose). Sans ce pin, l'UI plante au démarrage.
+pyarrow==25.0.1
+# DVC + remote S3 UNIQUEMENT — ne PAS réintroduire l'extra gdrive :
+# il tire PyDrive2 → pyOpenSSL 22.0.0 (épinglé) qui casse avec les
+# cryptography récents (« module 'lib' has no attribute 'GEN_EMAIL' »)
+# et a mis la prod à 0 modèle le 2026-07-18. Le remote DVC est S3.
+dvc[s3]==3.59.2
+# DVC/scmrepo attend pathspec < 1.0
+pathspec<1.0
 
 # TensorFlow + Keras (versions qui ont produit les modèles actuels)
 # [and-cuda] = libs CUDA/cuDNN 8 groupées → GPU sans installation système.
 # Sans cet extra, TF retombe sur CPU ("Skipping registering GPU devices").
 tensorflow[and-cuda]==2.16.1; python_version < "3.13"
-keras==3.13.2
+keras==3.15.1
 
 # Conversion ONNX (keras → onnx).
 # onnx < 1.18 : les versions ≥ 1.18 exigent ml_dtypes ≥ 0.4 (float4_e2m1fn),
@@ -30,9 +59,13 @@ onnx>=1.16,<1.18
 nibabel>=5.0
 
 # Notebooks
-jupyterlab==4.3.5
-notebook==7.3.2
+jupyterlab==4.6.6
+notebook==7.6.5
 ipykernel==6.29.5
 
 # Téléchargement datasets
 kaggle>=1.7.4.5
+
+# AWS CLI (aws configure / aws sso login pour dvc push) — retiré de l'image de production,
+# qui n'en a pas besoin (dvc[s3] parle à S3 par boto).
+awscli==1.46.3

@@ -50,7 +50,7 @@ Elle prend en entrée une image médicale (radiographie, IRM cérébrale) et ré
 ```
 
 **Stack technique** :
-- Python 3.10+, TensorFlow 2.x, FastAPI, Streamlit, MLflow, DVC
+- Python 3.11+, TensorFlow 2.x, FastAPI, Streamlit, MLflow, DVC
 - PostgreSQL (via MLflow backend store)
 - Docker / k3s (Kubernetes) pour le déploiement
 - AWS ECR pour les images Docker
@@ -62,7 +62,7 @@ Elle prend en entrée une image médicale (radiographie, IRM cérébrale) et ré
 
 ### Prérequis
 
-**Python 3.10 → 3.12** (TensorFlow 2.16.1 refuse 3.13+). Vérifier : `python3 --version`.
+**Python 3.11 → 3.12** (Pillow 13 exige 3.11 ; TensorFlow 2.16.1 refuse 3.13+). Vérifier : `python3 --version`.
 
 #### Installation automatique (Ubuntu natif **ou** WSL2) — recommandé
 
@@ -82,8 +82,8 @@ bash scripts/install_prereqs.sh --help     # options
 | Cible | Environnement | Commande | Contenu |
 |---|---|---|---|
 | **Inférence** (API/Streamlit) | `.venv` | `pip install -r requirements.txt` | onnxruntime, FastAPI, Streamlit, DVC (pas de TF/torch) |
-| **Entraînement TensorFlow** (pipeline `dvc repro`) | `.venv` | `pip install -r requirements-train.txt` | hérite de l'inférence + TensorFlow 2.16.1 [and-cuda], Keras 3.13.2, tf2onnx, kaggle |
-| **Modèles PyTorch / vision** | `.venv-torch` | `pip install -r requirements-torch.txt` | torch 2.6.0+cu124, torchvision 0.21.0 |
+| **Entraînement TensorFlow** (pipeline `dvc repro`) | `.venv` | `pip install -r requirements-train.txt` | deps d'inférence sauf Streamlit (conflit protobuf avec TF 2.16) + TensorFlow 2.16.1 [and-cuda], Keras 3.15.1, tf2onnx, kaggle, AWS CLI |
+| **Modèles PyTorch / vision** | `.venv-torch` | `pip install -r requirements-torch.txt` | torch 2.14.1+cu126, torchvision 0.29.1 |
 
 ```bash
 python3 -m venv .venv && source .venv/bin/activate
@@ -414,7 +414,7 @@ Si "dvc pull a échoué" → entraîner un modèle → `dvc push` → redeploy (
 ### `AttributeError: 'NoneType' object has no attribute 'pop'` lors d'une prédiction
 
 Incompatibilité de version Keras. Les modèles doivent être entraînés/sauvés avec la version
-épinglée dans `requirements-train.txt` (`keras==3.13.2`). Vérifier cette version et, pour la prod,
+épinglée dans `requirements-train.txt` (`keras==3.15.1` depuis le 2026-11-13 ; les modèles actuels ont été sauvés en 3.13.2). Vérifier cette version et, pour la prod,
 que l'inférence ONNX (`onnxruntime`) reste découplée de Keras.
 
 ### Port-forward MLflow
