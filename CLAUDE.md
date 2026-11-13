@@ -2,9 +2,21 @@
 
 This file defines Claude Code execution rules for `medvision-ai`.
 
-## 🤝 Handoff 2026-11-13 — Montée de sécurité des dépendances (PR #44, OUVERTE)
+## 🤝 Handoff 2026-11-13 (bis) — Alertes du front et pip (PR #45, OUVERTE)
 
-> **PR** : https://github.com/doctum-consilium/medvision-ai/pull/44 — non déployée.
+> **PR** : https://github.com/doctum-consilium/medvision-ai/pull/45 — non déployée.
+> **Lire d'abord : `docs/HANDOFF-2026-11-13-dependabot.md`** (778 → 99 → 3 alertes, mesure, suivi).
+>
+> - Front passé en **Angular 20.3** : aucune version 19.x ne corrige les avis hauts sur
+>   `@angular/*`. **La v20 sort du support vers fin novembre 2026** : prévoir 21 ou 22.
+> - `docker/Dockerfile` retire pip et sa roue `ensurepip` en dernier `RUN` : plus de
+>   `pip install` possible dans un pod, ni de `python -m venv` avec pip.
+
+## 🤝 Handoff 2026-11-13 — Montée de sécurité des dépendances (PR #44, DÉPLOYÉE)
+
+> **PR** : https://github.com/doctum-consilium/medvision-ai/pull/44 — déployée le 2026-11-13.
+> En production, MLflow tourne avec **1 worker et 1 Gio** (2 workers à 768 Mi mouraient au
+> démarrage), `--allowed-hosts` et `MLFLOW_SERVER_ENABLE_JOB_EXECUTION=false`.
 >
 > - Image en **Python 3.11** (Pillow 13.0.0 l'exige) ; streamlit 1.67.0, fastapi 0.162.5,
 >   starlette 1.10.0, python-multipart 0.0.31, mlflow 3.18.0 ; pytest et awscli hors image.
