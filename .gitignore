@@ -136,3 +136,7 @@ Thumbs.db
 desktop.ini
 coverage-smoke.xml
 coverage-tf.xml
+
+# ── Données propres au poste (le dépôt est public) ──────────────────────
+scripts/workers.env
+ONBOARDING_perso_*.md

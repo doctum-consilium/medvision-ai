@@ -29,8 +29,15 @@ REGISTRY="113301685315.dkr.ecr.eu-west-3.amazonaws.com/platform"
 REGION="eu-west-3"
 IMAGE="${REGISTRY}/medvision-ai"
 NAMESPACE="medvision"
-WORKER_SSH_B="yannsmatti@51.38.235.94"   # worker-ovh-094 (apps-b)
-WORKER_SSH_A="yannsmatti@141.94.121.233" # worker-ovh-233 (apps-a)
+# Accès SSH des workers : jamais dans le dépôt (il est public). Ils viennent de
+# l'environnement ou du fichier local non suivi scripts/workers.env, par exemple :
+#   WORKER_SSH_B="utilisateur@<ip du worker apps-b>"
+#   WORKER_SSH_A="utilisateur@<ip du worker apps-a>"
+SCRIPT_DIR_EARLY="$(cd "$(dirname "$0")" && pwd)"
+# shellcheck source=/dev/null
+[ -f "$SCRIPT_DIR_EARLY/workers.env" ] && . "$SCRIPT_DIR_EARLY/workers.env"
+: "${WORKER_SSH_B:?WORKER_SSH_B manquant : renseigner scripts/workers.env (non suivi par git)}"
+: "${WORKER_SSH_A:?WORKER_SSH_A manquant : renseigner scripts/workers.env (non suivi par git)}"
 
 # Repo k3s — chemin relatif au répertoire parent de medvision-ai
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
