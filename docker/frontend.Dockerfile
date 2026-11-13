@@ -10,7 +10,7 @@
 # de `node_modules` ne partent jamais en production.
 
 # ── Étape 1 : compilation ────────────────────────────────────────────────
-FROM node:22-alpine AS build
+FROM node:25-alpine AS build
 
 WORKDIR /build
 
