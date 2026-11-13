@@ -5,7 +5,7 @@
 # et torch (NCCL cu13 2.29) partagent le soname libnccl.so.2 et se cassent mutuellement.
 # Les modèles PyTorch/vision ont leur propre env → requirements-torch.txt.
 #
-# Usage (Python 3.10–3.12, venv ou conda) :
+# Usage (Python 3.11–3.12, venv ou conda) :
 #   python -m venv .venv && source .venv/bin/activate
 #   pip install -r requirements-train.txt
 #   source scripts/gpu_env.sh            # rend les libs CUDA pip visibles à TF 2.16
@@ -47,7 +47,7 @@ pathspec<1.0
 # [and-cuda] = libs CUDA/cuDNN 8 groupées → GPU sans installation système.
 # Sans cet extra, TF retombe sur CPU ("Skipping registering GPU devices").
 tensorflow[and-cuda]==2.16.1; python_version < "3.13"
-keras==3.13.2
+keras==3.15.1
 
 # Conversion ONNX (keras → onnx).
 # onnx < 1.18 : les versions ≥ 1.18 exigent ml_dtypes ≥ 0.4 (float4_e2m1fn),
@@ -59,8 +59,8 @@ onnx>=1.16,<1.18
 nibabel>=5.0
 
 # Notebooks
-jupyterlab==4.3.5
-notebook==7.3.2
+jupyterlab==4.6.6
+notebook==7.6.5
 ipykernel==6.29.5
 
 # Téléchargement datasets
