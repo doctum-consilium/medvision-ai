@@ -182,7 +182,7 @@ bash scripts/migrate-models-to-s3.sh
 | Label | Nœud | Workloads |
 |---|---|---|
 | `node-pool=apps-a` | master-ovh-xxx | MLflow, services légers |
-| `node-pool=apps-b` | worker-ovh-094 (51.38.235.94) | API, Streamlit (inférence CPU) |
+| `node-pool=apps-b` | worker-ovh-094 | API, Streamlit (inférence CPU) |
 
 Re-labeler manuellement :
 ```bash

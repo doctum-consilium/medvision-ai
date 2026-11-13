@@ -301,7 +301,7 @@ docker push 113301685315.dkr.ecr.eu-west-3.amazonaws.com/platform/medvision-ai:Y
 - `kubectl` configuré vers le cluster k3s (fichier `~/.kube/config` à jour)
 - AWS CLI connecté : `aws sts get-caller-identity` doit fonctionner
   - Si expiré : `aws sso login` (ou `aws login`)
-- SSH sans mot de passe vers `ubuntu@51.38.235.94` (worker-ovh-094)
+- SSH sans mot de passe vers `<utilisateur>@<ip du worker>` (worker-ovh-094)
 
 ### Redéploiement complet (disaster recovery)
 
