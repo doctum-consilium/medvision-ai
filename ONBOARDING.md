@@ -50,7 +50,7 @@ Elle prend en entrée une image médicale (radiographie, IRM cérébrale) et ré
 ```
 
 **Stack technique** :
-- Python 3.10+, TensorFlow 2.x, FastAPI, Streamlit, MLflow, DVC
+- Python 3.11+, TensorFlow 2.x, FastAPI, Streamlit, MLflow, DVC
 - PostgreSQL (via MLflow backend store)
 - Docker / k3s (Kubernetes) pour le déploiement
 - AWS ECR pour les images Docker
@@ -62,7 +62,7 @@ Elle prend en entrée une image médicale (radiographie, IRM cérébrale) et ré
 
 ### Prérequis
 
-**Python 3.10 → 3.12** (TensorFlow 2.16.1 refuse 3.13+). Vérifier : `python3 --version`.
+**Python 3.11 → 3.12** (Pillow 13 exige 3.11 ; TensorFlow 2.16.1 refuse 3.13+). Vérifier : `python3 --version`.
 
 #### Installation automatique (Ubuntu natif **ou** WSL2) — recommandé
 

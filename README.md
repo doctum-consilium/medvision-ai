@@ -102,7 +102,7 @@ As long as artifact naming stays consistent, both serving surfaces remain aligne
 
 ## 3. Prerequisites
 
-- Python 3.10 to 3.12 recommended
+- Python 3.11 to 3.12 (Pillow 13 and Streamlit 1.67 need 3.11+)
 - Git
 - Kaggle API token for dataset download (kaggle.json)
 - Optional: Docker Desktop
