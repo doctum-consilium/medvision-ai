@@ -1,6 +1,6 @@
 # Local developer profile for notebooks/tests without the heaviest MLOps tools.
 -r ci-full.txt
-jupyterlab==4.3.5
-notebook==7.3.2
-ipykernel==6.29.5
-plotly==6.0.0
+jupyterlab==4.6.6
+notebook==7.6.5
+ipykernel==7.3.0
+plotly==7.1.0

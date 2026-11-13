@@ -1,8 +1,8 @@
 # Intermediate CI profile: validates current test suite with TensorFlow present,
 # without pulling the full MLOps / DVC / PyTorch stack.
 -r base.txt
-pytest==8.3.5
-tensorflow==2.16.1
-opencv-python-headless==4.10.0.84
-nibabel>=5.0
+pytest==9.2.0
+tensorflow==2.21.0
+opencv-python-headless==5.0.0.93
+nibabel>=5.4.2
 kaggle>=1.7.4.5
