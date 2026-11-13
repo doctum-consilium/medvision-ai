@@ -1,0 +1,25 @@
+# convkit:securite — rendu par `convkit securite`. Mises à jour proposées par Dependabot
+# (gratuit), groupées, une fois par semaine, pour ne pas noyer la file ni consommer de minutes.
+version: 2
+updates:
+  - package-ecosystem: pip
+    directory: "/"
+    schedule: { interval: weekly, day: monday }
+    open-pull-requests-limit: 3
+    groups:
+      tout:
+        patterns: ["*"]
+  - package-ecosystem: docker
+    directory: "/docker"
+    schedule: { interval: weekly, day: monday }
+    open-pull-requests-limit: 3
+    groups:
+      tout:
+        patterns: ["*"]
+  - package-ecosystem: github-actions
+    directory: "/"
+    schedule: { interval: weekly, day: monday }
+    open-pull-requests-limit: 3
+    groups:
+      tout:
+        patterns: ["*"]

@@ -1,0 +1,100 @@
+# convkit:securite — rendu par `convkit securite`. Pour le régénérer : `convkit securite --force`.
+#
+# Sécurité : dépendances vulnérables (CVE, osv-scanner), code dangereux (Semgrep), secrets
+# (gitleaks). Outils libres dans les minutes Actions, sans licence payante.
+# BLOQUE : une CVE dans ce qui part en production ; un motif de code ou un secret qu'une PR
+# INTRODUIT. SIGNALÉ dans le résumé : le reste, et l'état complet du code chaque lundi.
+# Une exception de CVE se déclare dans osv-scanner.toml, avec sa raison et sa date de fin.
+name: Sécurité
+
+on:
+  pull_request:
+  push:
+    branches: [main, master]
+  schedule:
+    - cron: "37 5 * * 1" # chaque lundi
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: securite-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  dependances:
+    name: Dépendances (CVE, osv-scanner)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - name: osv-scanner (empreinte vérifiée)
+        run: |
+          set -euo pipefail
+          v=2.2.4; base=https://github.com/google/osv-scanner/releases/download/v$v
+          curl -sSfL -o osv-scanner "$base/osv-scanner_linux_amd64"
+          curl -sSfL "$base/osv-scanner_SHA256SUMS" | grep ' osv-scanner_linux_amd64$' \
+            | awk '{print $1"  osv-scanner"}' | sha256sum -c -
+          chmod +x osv-scanner
+      - name: Ce qui part en production (bloquant)
+        run: ./osv-scanner scan source --config osv-scanner.toml -L requirements.txt
+      - name: Outils de développement, de test et fronts statiques (signalé, non bloquant)
+        if: always()
+        run: |
+          {
+            echo "### Dépendances hors production"
+            echo '```'
+            ./osv-scanner scan source --config osv-scanner.toml -L frontend/package-lock.json -L requirements-torch.txt -L requirements-train.txt -L requirements/requirements-ci.txt 2>&1 | tail -n 60 || true
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+  code:
+    name: Code (Semgrep)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          fetch-depth: 0
+      - name: Semgrep
+        env:
+          SEMGREP_SEND_METRICS: "off"
+          BASE: ${{ github.event.pull_request.base.sha }}
+        run: |
+          set -euo pipefail
+          python3 -m pip install --quiet --user semgrep==1.185.0
+          regles=(--config p/security-audit --config p/secrets --config p/github-actions --config p/dockerfile --config p/python --config p/typescript)
+          if [ -n "${BASE:-}" ]; then
+            # PR : seules les trouvailles NOUVELLES bloquent.
+            semgrep scan --metrics=off --error --baseline-commit "$BASE" "${regles[@]}"
+          else
+            {
+              echo "### Semgrep, état complet"
+              echo '```'
+              semgrep scan --metrics=off "${regles[@]}" 2>&1 | tail -n 120 || true
+              echo '```'
+            } >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+  secrets:
+    name: Secrets (gitleaks)
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          fetch-depth: 0
+      - name: gitleaks (empreinte vérifiée, valeurs masquées)
+        env:
+          BASE: ${{ github.event.pull_request.base.sha }}
+          # Relecture complète à partir de la mise en service ; l'historique antérieur a été
+          # inventorié à ce moment-là.
+          DEPART: 2c7d96f1e7bdf23366ae1dedc66a12d4cd9ea549
+        run: |
+          set -euo pipefail
+          v=8.30.1; base=https://github.com/gitleaks/gitleaks/releases/download/v$v
+          curl -sSfLO "$base/gitleaks_${v}_linux_x64.tar.gz"
+          curl -sSfL "$base/gitleaks_${v}_checksums.txt" | grep linux_x64.tar.gz | sha256sum -c -
+          tar -xzf "gitleaks_${v}_linux_x64.tar.gz" gitleaks
+          ./gitleaks git --redact --no-banner --log-opts="${BASE:-$DEPART}..HEAD" .
