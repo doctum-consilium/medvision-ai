@@ -27,7 +27,7 @@ COPY frontend/ ./
 RUN npm run build
 
 # ── Étape 2 : service ────────────────────────────────────────────────────
-FROM nginx:1.27-alpine
+FROM nginx:1.30-alpine
 
 # Configuration maison : mono-page + proxy vers l'API + flux temps réel.
 # Déposée comme GABARIT : le point d'entrée officiel de l'image nginx y
