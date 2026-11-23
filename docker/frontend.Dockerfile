@@ -10,7 +10,7 @@
 # de `node_modules` ne partent jamais en production.
 
 # ── Étape 1 : compilation ────────────────────────────────────────────────
-FROM node:22-alpine AS build
+FROM node:26-alpine AS build
 
 WORKDIR /build
 
@@ -27,7 +27,7 @@ COPY frontend/ ./
 RUN npm run build
 
 # ── Étape 2 : service ────────────────────────────────────────────────────
-FROM nginx:1.30-alpine
+FROM nginx:1.31-alpine
 
 # Configuration maison : mono-page + proxy vers l'API + flux temps réel.
 # Déposée comme GABARIT : le point d'entrée officiel de l'image nginx y
